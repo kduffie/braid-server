@@ -28,7 +28,9 @@ you can make a copy of the config.json file and place it elsewhere.
 
 3. From a shell with the current directory set to braid's root folder, install the dependencies;
 
-	`npm install`
+	`npm install`  
+	
+	(If running on Mac, you may need to use:  `sudo npm install`)
 
 4. Start the braid server:
 
