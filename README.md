@@ -40,10 +40,10 @@ Note:  If your configuration file is elsewhere, point to it, e.g., node braid-se
 
 The server is still under development.  At this point, the server supports only the basics:
 
-- Accounts:  registration and authentication of accounts within a domain
-- Subscriptions:  a user can subscribe someone else to their presence
-- Presence:  subscribers are notified when sessions start and end for one of the people they are subscribed to
-- Message delivery:  clients can send braid-compatible messages to each other, using unicast or multicast
+- *Accounts*:  registration and authentication of accounts within a domain
+- *Subscriptions*:  a user can subscribe someone else to their presence
+- *Presence*:  subscribers are notified when sessions start and end for one of the people they are subscribed to
+- *Message delivery*:  clients can send braid-compatible messages to each other, using unicast or multicast
 
 There is a lot more to come.  Stay tuned.
 

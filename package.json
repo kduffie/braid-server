@@ -1,6 +1,6 @@
 {
   "name": "braid.server",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A federated server for interconnecting braid-compatible clients",
   "main": "braid-server.js",
   "scripts": {
@@ -17,5 +17,12 @@
     "node-uuid": "^1.4.3",
     "nodejs-websocket": "^1.2.1",
     "scribe-js": "^2.0.4"
+  },
+  "devDependencies": {
+	  "mocha": "^2.2.5"
+  },
+  "repository" : { 
+	  "type" : "git", 
+	  "url" : "https://github.com/kduffie/braid-server"
   }
 }
