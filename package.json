@@ -1,0 +1,21 @@
+{
+  "name": "braid.server",
+  "version": "0.2.0",
+  "description": "A federated server for interconnecting braid-compatible clients",
+  "main": "braid-server.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "author": "HivePoint, Inc.",
+  "license": "MIT",
+  "dependencies": {
+    "async": "^1.2.1",
+    "bcrypt": "^0.8.3",
+    "express": "^4.12.4",
+    "fs": "0.0.2",
+    "mongodb": "^2.0.33",
+    "node-uuid": "^1.4.3",
+    "nodejs-websocket": "^1.2.1",
+    "scribe-js": "^2.0.4"
+  }
+}

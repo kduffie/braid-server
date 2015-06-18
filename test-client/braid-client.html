@@ -1,0 +1,133 @@
+<html>
+<head>
+	<style>
+		section {
+			margin:5px;
+			padding: 10px;
+			background-color: #e8e8e8;
+		}
+		.hidden {
+			display: none;
+		}
+	</style>
+	<script src='braid-client-web.js'></script>
+	<script>
+		var braidClient = new BraidClient("127.0.0.1", 25555);
+		var connected = false;
+		
+		function getElement(id) {
+			return document.getElementById(id);
+		}
+		
+		function connect(callback) {
+			if (connected) {
+				callback();
+			} else {
+				braidClient.connect(callback);
+			}
+		}
+		
+		function onHelloClick() {
+			connect(function() {
+				braidClient.sendHello(factory.newHelloPayload('html-test-client', '0.2.0'), function(err, reply) {
+					getElement('msgHello').innerText = JSON.stringify(reply.data);
+				});
+			});
+		}
+
+		function onSignInClick() {
+			connect(function() {
+				if (getElement('register').checked) {
+					braidClient.register(getElement('userid').value, getElement('password').value, onActivated);
+				} else {
+					braidClient.authenticate(getElement('userid').value, getElement('password').value, onActivated);
+				}
+			});
+		}
+		
+		function onActivated(err, reply) {
+			if (err) {
+				alert(err);
+			} else {
+				connected = true;
+				localStorage.setItem("braid-userid", getElement('userid').value);
+				localStorage.setItem("braid-password", getElement('password').value);
+				getElement('connect').setAttribute("disabled", "");
+				getElement('userid').setAttribute("disabled", "");
+				getElement('password').setAttribute("disabled", "");
+				getElement('msgConnect').innerText = "Successfully signed in as " + JSON.stringify(reply.to[0]);
+				getElement('activeSession').setAttribute('class', '');
+			}
+		}
+		
+		function onSubscribeClick() {
+			braidClient.subscribe(getElement('subscriber').value);
+		}
+
+		function onUnsubscribeClick() {
+			braidClient.unsubscribe(getElement('subscriber').value);
+		}
+
+		function onPingClick() {
+			var subscriber;
+			if (getElement('subscriber').value.length > 0) {
+				subscriber = getElement('subscriber').value;
+			} 
+			braidClient.pingEndpoint(subscriber, function(err, reply) {
+				if (err) {
+					alert(err);
+				} else if (reply.type === 'reply') {
+					alert("Ping successful");					
+				} else {
+					alert(reply.message);
+				}
+			});
+		}
+
+		function onRosterClick() {
+			braidClient.requestRoster(function(err, reply) {
+				if (err) {
+					alert(err);
+				} else if (reply.type === 'reply') {
+					alert("Roster received.  Check javascript console");					
+				} else {
+					alert(reply.message);
+				}
+			});
+		}
+	</script>
+</head>
+<body style='font-family:sans-serif;font-size:10pt;'>
+	<h1>Braid Client</h1>
+	<section>
+		<h3>Hello</h3>
+		<p>		
+			<button id='hello' onclick='onHelloClick()'>hello</button>
+		</p>
+		<p id='msgHello'></p>
+	</section>
+	<section>
+		<h3>Session</h3>
+		<p>
+			<input id='userid' type='text' placeholder='userid'/>
+			<input id='password' type='password' placeholder='password'/>
+			<input id='register' type='checkbox' /> Register new account 
+		</p>
+		<p>		
+			<button id='connect' onclick='onSignInClick()'>sign in</button>
+		</p>
+		<p id='msgConnect'></p>
+	</section>
+	<div id='activeSession' class='hidden'>
+		<section>
+			<h3>Roster</h3>
+			<input id='subscriber' type='text' placeholder='subscriber'/>
+			<button onclick='onSubscribeClick()'>subscribe</button> <button onclick='onUnsubscribeClick()'>unsubscribe</button> <button onclick='onPingClick()'>ping</button> <button onclick='onRosterClick()'>roster</button>
+		<section>
+	</div>
+	<script>
+		getElement('userid').value = localStorage.getItem('braid-userid');
+		getElement('password').value = localStorage.getItem('braid-password');
+	</script>
+</body>
+</html>
