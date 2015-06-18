@@ -2,9 +2,9 @@
 
 Braid is a cross-platform solution for collaboration in a new way -- based on three principles:
 
-1. You should be in control of your information rather than having to trust any one cloud provider.  
-2. We favor simplicity over deep feature integration.  People won't use features they don't understand anyway. 
-3. You should have a lot of choice over the sharing components -- even inventing your own.
+- You should be in control of your information rather than having to trust any one cloud provider.  
+- We favor simplicity over deep feature integration.  People won't use features they don't understand anyway. 
+- You should have a lot of choice over the sharing components -- even inventing your own.
 
 This project is an open-source implementation of a server that implements the Braid protocol.  This
 implementation is built on node.js and its only mandatory external dependency is MongoDB.  (There are
@@ -22,9 +22,15 @@ To run a braid server, you will need the following prerequisites:
 Once you have the prerequisites in place, follow these steps:
 
 1. Put the contents of this repository in a folder on your machine.  For example, let's suppose you put it in, e.g., ~/braid.
+
 2. Modify the contents of config.json appropriate to your situation.  In particular, you should choose an appropriate domain that is under your control.  Alternatively, if you don't want to modify any of the repository files
 you can make a copy of the config.json file and place it elsewhere.
-3. From a shell with the current directory set to braid's root folder, start braid:
+
+3. From a shell with the current directory set to braid's root folder, install the dependencies;
+
+	`npm install`
+
+4. Start the braid server:
 
 	`node braid-server config.json`
 
@@ -43,14 +49,10 @@ There is a lot more to come.  Stay tuned.
 
 ##Test Client
 
-If you want to play around with the basics of the server, there is a test-only web client included in this repository.  
-This is not a real Braid client, but simply a tool for interacting with the server manually from a web page.
+If you want to play around with the server, there is a test-only web client included in this repository.  This is not a real Braid client, but simply a tool for interacting with the server manually from a web page.
 
-This client is implemented as a standalone web page.  It is not served from the braid server.  You simply open
-the *braid-client.html* file (found in the test-client folder) using a web browser.
+This client is implemented as a standalone web page.  It is not served from the braid server.  You simply open the *braid-client.html* file (found in the test-client folder) using a web browser.
 
-Open the browser inspector so that you can see logging and network transactions between the client
-and server.   The test-client has only been tested using an up-to-date version of Chrome.
+Open the browser inspector so that you can see logging and network transactions between the client and server.   The test-client has only been tested using an up-to-date version of Chrome.
 
-Note that the test client is hard-coded to access the server at 127.0.0.1, i.e. on the same machine.  If you 
-want to access a remote server, modify the braid-client.html and change the URL accordingly.
+Note that the test client is hard-coded to access the server at 127.0.0.1, i.e. on the same machine.  If you want to access a remote server, modify the braid-client.html and change the URL accordingly.
