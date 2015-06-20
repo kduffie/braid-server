@@ -9,11 +9,22 @@
 
 var fs = require('fs');
 var ws = require("nodejs-websocket");
+var express = require('express');
 
 var args = process.argv.slice(2);
 var config = {};
+var webServer;
 
 function startServer() {
+	if (config.web && config.web.enabled) {
+		var httpPort = 8080;
+		if (config.web.port) {
+			httpPort = config.web.port;
+		}
+		var app = express();
+		app.use(express.static('public'));
+		webServer = app.listen(httpPort);
+	}
 	var wsPort = 25555;
 	if (config && config.client && config.client.port) {
 		wsPort = config.client.port;
