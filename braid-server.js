@@ -10,6 +10,7 @@
 var fs = require('fs');
 var ws = require("nodejs-websocket");
 var express = require('express');
+var path = require('path');
 
 var args = process.argv.slice(2);
 var config = {};
@@ -22,7 +23,7 @@ function startServer() {
 			httpPort = config.web.port;
 		}
 		var app = express();
-		app.use(express.static('public'));
+		app.use(express.static(path.join(__dirname, 'public')));
 		webServer = app.listen(httpPort);
 	}
 	var wsPort = 25555;
