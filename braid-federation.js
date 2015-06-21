@@ -400,7 +400,23 @@ function acceptFederationSession(connection) {
 	session.initializeBasedOnInbound(connection);
 }
 
+var clientCapabilities = {
+	v : 1,
+	delivery : {
+		v : 1
+	}
+};
+
+var federationCapabilities = {
+	v : 1,
+	delivery : {
+		v : 1
+	}
+};
+
 module.exports = {
+	clientCapabilities : clientCapabilities,
+	federationCapabilities : federationCapabilities,
 	initialize : initialize,
 	acceptFederationSession : acceptFederationSession
 };

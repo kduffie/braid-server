@@ -125,6 +125,22 @@ function initialize(config, db) {
 	messageSwitch.registerResource('!auth', domain, handleMessage);
 }
 
+var clientCapabilities = {
+	v : 1,
+	register : {
+		v : 1
+	},
+	credentials : {
+		v : 1
+	}
+};
+
+var federationCapabilities = {
+	v : 1
+};
+
 module.exports = {
+	clientCapabilities : clientCapabilities,
+	federationCapabilities : federationCapabilities,
 	initialize : initialize
 };

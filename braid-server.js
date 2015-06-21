@@ -117,31 +117,22 @@ function start() {
 			throw "You must specify a domain in the configuration";
 		}
 		config.client.capabilities = {
-			auth : {
-				v : 1
-			},
-			register : {
-				v : 1
-			},
-			presence : {
-				v : 1
-			}
+			auth : require('./braid-auth').clientCapabilities,
+			roster : require('./braid-roster').clientCapabilities,
+			federation : require('./braid-federation').clientCapabilities
 		};
 		config.federation.capabilities = {
-			federate : {
-				v : 1
-			},
-			callback : {
-				v : 1
-			}
+			auth : require('./braid-auth-server').federationCapabilities,
+			roster : require('./braid-roster').federationCapabilities,
+			federation : require('./braid-federation').federationCapabilities
 		};
 		require('./braid-db').initialize(config, function(err, braidDb) {
 			if (err || !braidDb) {
 				console.log("Error opening mongo.  Are you running mongo?");
 				throw "Mongo error: " + err;
 			}
-			require('./braid-auth-server').initialize(config, braidDb);
-			require('./braid-roster-manager').initialize(config, braidDb);
+			require('./braid-auth').initialize(config, braidDb);
+			require('./braid-roster').initialize(config, braidDb);
 			require('./braid-clients').initialize(config);
 			require('./braid-federation').initialize(config);
 			startServer();
