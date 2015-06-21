@@ -8,51 +8,133 @@
  */
 
 var fs = require('fs');
-var ws = require("nodejs-websocket");
 var express = require('express');
 var path = require('path');
+var cliArgs = require("command-line-args");
+
+var WebSocketServer = require('ws').Server;
+var http = require('http');
 
 var args = process.argv.slice(2);
 var config = {};
-var webServer;
 
 function startServer() {
-	if (config.web && config.web.enabled) {
-		var httpPort = 8080;
-		if (config.web.port) {
-			httpPort = config.web.port;
+	if (config.client && config.client.enabled) {
+		var clientPort = 25555;
+		if (config.client.port) {
+			clientPort = config.client.port;
 		}
-		var app = express();
-		app.use(express.static(path.join(__dirname, 'public')));
-		webServer = app.listen(httpPort);
+		var clientApp = express();
+		clientApp.use(express.static(path.join(__dirname, 'public')));
+
+		console.log("Listening for client connections on port " + clientPort);
+		var clientServer = http.createServer(clientApp);
+		clientServer.listen(clientPort);
+
+		var clientWss = new WebSocketServer({
+			server : clientServer
+		});
+		clientWss.on('connection', function(conn) {
+			require('./braid-clients').acceptSession(conn);
+		});
 	}
-	var wsPort = 25555;
-	if (config && config.client && config.client.port) {
-		wsPort = config.client.port;
+	if (config.federation && config.federation.enabled) {
+		var federationPort = 25557;
+		if (config.federation.port) {
+			federationPort = config.federation.port;
+		}
+		var federationApp = express();
+
+		console.log("Listening for federation connections on port " + federationPort);
+		var federationServer = http.createServer(federationApp);
+		federationServer.listen(federationPort);
+
+		var federationWss = new WebSocketServer({
+			server : federationServer
+		});
+		federationWss.on('connection', function(conn) {
+			require('./braid-federation').acceptFederationSession(conn);
+		});
 	}
-	console.log("Creating websocket server on port " + wsPort);
-	var server = ws.createServer(function(conn) {
-		require('./braid-clients').acceptSession(conn);
-	}).listen(wsPort);
 }
 
 function start() {
-	if (!args || args.length === 0) {
-		console.log("Missing configuration file argument");
+
+	/* define the command-line options */
+	var cli = cliArgs([ {
+		name : "help",
+		alias : "h",
+		type : Boolean,
+		description : "Print usage instructions"
+	}, {
+		name : "domain",
+		alias : "d",
+		type : String,
+		defaultOption : true,
+		description : "Domain (e.g., 'example.org'"
+	}, {
+		name : "config",
+		alias : "c",
+		type : String,
+		description : "Path to a configuration file (based on config.json)"
+	} ]);
+
+	/* parse the supplied command-line values */
+	var options = cli.parse();
+
+	/* generate a usage guide */
+	var usage = cli.getUsage({
+		header : "Braid Server: a federated collaboration server",
+		footer : "For more information, visit http://braid.io"
+	});
+
+	if (options.help || (!options.domain && !options.config)) {
+		console.log(usage);
 		process.exit();
-		return;
 	}
-	console.log("Reading configuration from " + args[0]);
-	fs.readFile(args[0], 'utf8', function(err, data) {
+
+	var configPath = path.join(__dirname, 'config.json');
+	if (options.config) {
+		configPath = options.config;
+	}
+	console.log("Reading configuration from " + configPath);
+	fs.readFile(configPath, 'utf8', function(err, data) {
 		if (err) {
 			console.log(err);
 			process.exit();
 		}
 		config = JSON.parse(data);
+		if (options.domain) {
+			config.domain = options.domain;
+		}
+		if (!config.mongo.mongoUrl) {
+			throw "Invalid configuration.  mongo.mongoUrl is mandatory";
+		}
+		config.mongo.mongoUrl = config.mongo.mongoUrl.replace("{domain}", config.domain.replace(".", "_"));
+		console.log("Braid server initializing for domain: " + config.domain);
 		console.log("Configuration", config);
 		if (!config.domain) {
 			throw "You must specify a domain in the configuration";
 		}
+		config.client.capabilities = {
+			auth : {
+				v : 1
+			},
+			register : {
+				v : 1
+			},
+			presence : {
+				v : 1
+			}
+		};
+		config.federation.capabilities = {
+			federate : {
+				v : 1
+			},
+			callback : {
+				v : 1
+			}
+		};
 		require('./braid-db').initialize(config, function(err, braidDb) {
 			if (err || !braidDb) {
 				console.log("Error opening mongo.  Are you running mongo?");
@@ -61,6 +143,7 @@ function start() {
 			require('./braid-auth-server').initialize(config, braidDb);
 			require('./braid-roster-manager').initialize(config, braidDb);
 			require('./braid-clients').initialize(config);
+			require('./braid-federation').initialize(config);
 			startServer();
 		});
 	});

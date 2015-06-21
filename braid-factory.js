@@ -34,7 +34,7 @@ BraidFactory.prototype.newRequest = function(requestType, to, from) {
 };
 
 BraidFactory.prototype.newReply = function(requestMessage, from, to) {
-	if (!to) {
+	if (!to || to.length === 0) {
 		to = [ requestMessage.from ];
 	}
 	var message = this.newMessage(to, requestMessage.id, from);
@@ -109,6 +109,22 @@ BraidFactory.prototype.newAuthRequest = function(userId, password, to, from) {
 	message.data = {
 		user : userId,
 		password : password
+	};
+	return message;
+};
+
+BraidFactory.prototype.newFederateMessage = function(token, to, from) {
+	var message = this.newCastMessage("federate", to, from);
+	message.data = {
+		token : token
+	};
+	return message;
+};
+
+BraidFactory.prototype.newCallbackRequest = function(token, to, from) {
+	var message = this.newCastMessage("callback", to, from);
+	message.data = {
+		token : token
 	};
 	return message;
 };

@@ -23,7 +23,8 @@
     		l.href = href;
     		return l;
 		};
-		var braidClient = new BraidClient(getLocation(document.location).hostname, 25555);
+		var loc = getLocation(document.location);
+		var braidClient = new BraidClient(loc.hostname, loc.port);
 		var connected = false;
 		
 		function getElement(id) {

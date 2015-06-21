@@ -562,7 +562,7 @@ function BraidClient(domain, port) {
 BraidClient.prototype.connect = function(callback) {
 	console.log(this.userId + ": connect");
 	this.connectCallback = callback;
-	this.socket = new WebSocket("ws://" + this.domain + ":" + this.port + "/braid", []);
+	this.socket = new WebSocket("ws://" + this.domain + ":" + this.port + "/braid-client", []);
 	this.socket.onopen = this.onSocketOpen.bind(this);
 	this.socket.onerror = this.onSocketError.bind(this);
 	this.socket.onmessage = this.onSocketMessage.bind(this);
@@ -652,9 +652,18 @@ BraidClient.prototype.pingServer = function(callback) {
 	this.pingEndpoint(null, callback);
 };
 
-BraidClient.prototype.pingEndpoint = function(userId, callback) {
-	console.log(this.userId + ": pingEndpoint", userId);
-	var to = new BraidAddress(userId, this.address.domain);
+BraidClient.prototype.parseAddressEntry = function(value) {
+	if (value.indexOf("@") >= 0) {
+		var parts = value.split("@");
+		return new BraidAddress(parts[0], parts[1]);
+	} else {
+		return new BraidAddress(value, this.address.domain);
+	}
+}
+
+BraidClient.prototype.pingEndpoint = function(user, callback) {
+	console.log(this.userId + ": pingEndpoint", user);
+	var to = this.parseAddressEntry(user);
 	var request = factory.newPingRequest(to);
 	this.sendRequest(request, function(err, reply) {
 		if (err) {
@@ -677,14 +686,14 @@ BraidClient.prototype.requestRoster = function(callback) {
 
 BraidClient.prototype.subscribe = function(userId) {
 	console.log(this.userId + ": subscribe", userId);
-	var to = new BraidAddress(userId, this.address.domain);
+	var to = this.parseAddressEntry(user);
 	var cast = factory.newSubscribeMessage(to);
 	this.sendCast(cast);
 };
 
 BraidClient.prototype.unsubscribe = function(userId) {
 	console.log(this.userId + ": unsubscribe", userId);
-	var to = new BraidAddress(userId, this.address.domain);
+	var to = this.parseAddressEntry(user);
 	var cast = factory.newUnsubscribeMessage(to);
 	this.sendCast(cast);
 };

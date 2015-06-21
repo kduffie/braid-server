@@ -7,6 +7,7 @@ var async = require('async');
 var resourceRegistrations = {};
 var userRegistrations = {};
 var requestRegistrations = {};
+var foreignDomainRegistrations = [];
 
 var id = 1;
 
@@ -106,6 +107,13 @@ function registerForRequests(requestType, messageHandler) {
 		requestType : requestType,
 		id : requestId
 	};
+}
+
+function registerForeignDomains(localDomain, messageHandler) {
+	foreignDomainRegistrations.push({
+		localDomain : localDomain,
+		handler : messageHandler
+	});
 }
 
 function unregister(registration) {
@@ -241,6 +249,30 @@ function deliver(message, callback) {
 			callback();
 		}
 	});
+	tasks.push(function(callback) {
+		if (message.to) {
+			var fhandlers = [];
+			var ldomains = [];
+			for (var i = 0; i < foreignDomainRegistrations.length; i++) {
+				var fdr = foreignDomainRegistrations[i];
+				for (var j = 0; j < message.to.length; j++) {
+					if (message.to[j] && message.to[j].domain && fdr.localDomain !== message.to[j].domain) {
+						if (ldomains.indexOf(fdr.localDomain) < 0) {
+							ldomains.push(fdr.localDomain);
+							fhandlers.push(fdr.handler);
+						}
+					}
+				}
+			}
+			async.each(fhandlers, function(fhandler, callback) {
+				fhandler(message);
+				stats.messages.delivered++;
+				callback();
+			}, callback);
+		} else {
+			callback();
+		}
+	});
 	async.parallel(tasks, callback);
 }
 
@@ -253,6 +285,7 @@ module.exports = {
 	registerUser : registerUser,
 	registerResource : registerResource,
 	registerForRequests : registerForRequests,
+	registerForeignDomains : registerForeignDomains,
 	unregister : unregister,
 	deliver : deliver,
 	getStats : getStats
