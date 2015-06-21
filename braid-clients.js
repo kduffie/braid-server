@@ -29,7 +29,6 @@ function Session(connection) {
 	this.transmitQueue = [];
 	this.authenticationServerAddress = new BraidAddress(null, config.domain, "!auth");
 	this.rosterServerAddress = new BraidAddress(null, config.domain, "!roster");
-	this.clientCapabilities = {};
 }
 
 Session.prototype.initialize = function() {
@@ -109,7 +108,8 @@ Session.prototype.onSocketMessageReceived = function(msg) {
 	if (message.request === 'hello') {
 		this.clientHello = message;
 		this.clientCapabilities = this.clientHello.capabilities;
-		var reply = factory.newHelloReply(message, factory.newHelloPayload(config.product, config.version, config.client.capabilities), this.userAddress);
+		var package = require('./package.json');
+		var reply = factory.newHelloReply(message, factory.newHelloPayload(package.name, package.version, config.client.capabilities), this.userAddress);
 		this.sendMessage(reply);
 	} else {
 		try {
@@ -181,7 +181,7 @@ Session.prototype.kickTransmit = function() {
 		this.transmitInProgress = true;
 		var pendingItem = this.transmitQueue.shift();
 		if (pendingItem.message) {
-			this.connection.sendText(JSON.stringify(pendingItem.message), function() {
+			this.connection.send(JSON.stringify(pendingItem.message), function() {
 				if (pendingItem.callback) {
 					pendingItem.callback();
 				}

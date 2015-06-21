@@ -34,7 +34,7 @@ function startServer() {
 		});
 		clientWss.on('connection', function(conn) {
 			require('./braid-clients').acceptSession(conn);
-		}).listen(clientPort);
+		});
 	}
 	if (config.federation && config.federation.enabled) {
 		var federationPort = 25557;
@@ -51,7 +51,7 @@ function startServer() {
 		});
 		federationWss.on('connection', function(conn) {
 			require('./braid-federation').acceptFederationSession(conn);
-		}).listen(federationPort);
+		});
 	}
 }
 
@@ -72,6 +72,29 @@ function start() {
 		if (!config.domain) {
 			throw "You must specify a domain in the configuration";
 		}
+		config.client = {
+			capabilities : {
+				register : {
+					v : 1
+				},
+				auth : {
+					v : 1
+				},
+				presence : {
+					v : 1
+				}
+			}
+		};
+		config.federation = {
+			capabilities : {
+				federate : {
+					v : 1
+				},
+				callback : {
+					v : 1
+				}
+			}
+		};
 		require('./braid-db').initialize(config, function(err, braidDb) {
 			if (err || !braidDb) {
 				console.log("Error opening mongo.  Are you running mongo?");

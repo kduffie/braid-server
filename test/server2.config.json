@@ -1,7 +1,7 @@
 {
-	"domain": "example.org",
+	"domain": "domain1.26003",
 	"mongo" : {
-		"mongoUrl" : "mongodb://localhost:27017/braid",
+		"mongoUrl" : "mongodb://localhost:27017/braid26003",
 		"options" : {}
 	},
 	"ssl" : {
@@ -11,14 +11,14 @@
 	"client" : {
 		"enabled" : true,
 		"ssl" : false,
-		"port" : 25555,
+		"port" : 26002,
 		"hello" : {
 		}
 	},
 	"federation" : {
 		"enabled" : true,
 		"ssl" : false,
-		"port" : 25557,
+		"port" : 26003,
 		"hello" : {
 		}
 	}

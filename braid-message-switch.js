@@ -250,24 +250,28 @@ function deliver(message, callback) {
 		}
 	});
 	tasks.push(function(callback) {
-		var fhandlers = [];
-		var ldomains = [];
-		for (var i = 0; i < foreignDomainRegistrations.length; i++) {
-			var fdr = foreignDomainRegistrations[i];
-			for (var j = 0; j < message.to.length; j++) {
-				if (fdr.localDomain !== message.to.domain) {
-					if (ldomains.indexOf(fdr.localDomain) < 0) {
-						ldomains.push(fdr.localDomain);
-						fhandlers.push(fdr.handler);
+		if (message.to) {
+			var fhandlers = [];
+			var ldomains = [];
+			for (var i = 0; i < foreignDomainRegistrations.length; i++) {
+				var fdr = foreignDomainRegistrations[i];
+				for (var j = 0; j < message.to.length; j++) {
+					if (message.to[j] && message.to[j].domain && fdr.localDomain !== message.to[j].domain) {
+						if (ldomains.indexOf(fdr.localDomain) < 0) {
+							ldomains.push(fdr.localDomain);
+							fhandlers.push(fdr.handler);
+						}
 					}
 				}
 			}
-		}
-		async.each(fhandlers, function(fhandler, callback) {
-			fhandler(message);
-			stats.messages.delivered++;
+			async.each(fhandlers, function(fhandler, callback) {
+				fhandler(message);
+				stats.messages.delivered++;
+				callback();
+			}, callback);
+		} else {
 			callback();
-		});
+		}
 	});
 	async.parallel(tasks, callback);
 }

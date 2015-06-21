@@ -15,7 +15,6 @@
     "fs": "0.0.2",
     "mongodb": "^2.0.33",
     "node-uuid": "^1.4.3",
-    "nodejs-websocket": "^1.2.1",
     "path": "^0.11.14",
     "scribe-js": "^2.0.4",
     "ws": "^0.7.2"

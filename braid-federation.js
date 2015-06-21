@@ -97,7 +97,9 @@ FederationSession.prototype.onSocketMessageReceived = function(msg) {
 	}
 	if (message.request === 'hello') {
 		this.federationHello = message;
-		var reply = factory.newHelloReply(message, factory.newHelloPayload(config.product, config.version, config.federation.capabilities), this.domainAddress);
+		var package = require('./package.json');
+		var reply = factory.newHelloReply(message, factory.newHelloPayload(package.product, package.version, config.federation.capabilities),
+				this.domainAddress);
 		this.sendMessage(reply);
 	} else {
 		try {
@@ -219,7 +221,7 @@ FederationSession.prototype.parseMessage = function(text) {
 	}
 };
 
-Session.prototype.sendErrorResponseIfAppropriate = function(message, errorMessage, errorCode, closeSocket) {
+FederationSession.prototype.sendErrorResponseIfAppropriate = function(message, errorMessage, errorCode, closeSocket) {
 	if (message.type === 'request' || message.type === 'cast') {
 		this.sendError(message, errorMessage, errorCode, closeSocket);
 		var reply = factory.newErrorReply(message, errorCode, errorMessage);
@@ -253,7 +255,7 @@ FederationSession.prototype.kickTransmit = function() {
 		this.transmitInProgress = true;
 		var pendingItem = this.transmitQueue.shift();
 		if (pendingItem.message) {
-			this.connection.sendText(JSON.stringify(pendingItem.message), function() {
+			this.connection.send(JSON.stringify(pendingItem.message), function() {
 				if (pendingItem.callback) {
 					pendingItem.callback();
 				}
@@ -299,7 +301,7 @@ function initiateFederation(domain) {
 	// We open a websocket to the server responsible for that domain. If they
 	// answer, we just provide a token that will be used to authenticate on
 	// a callback connection
-	var connectionUrl = domainNameServer.resolveFederationService(domain);
+	var connectionUrl = domainNameServer.resolveServer(domain);
 	var session = new FederationSession();
 	var ws = new WebSocket(connectionUrl);
 	ws.on('open', function() {
@@ -327,7 +329,7 @@ function handleSwitchedMessage(message) {
 		var domain = domains[i];
 		var session = activeSessionsByDomain[domain];
 		if (session) {
-			session.queueTransmit(message);
+			session.sendMessage(message);
 		} else {
 			// No active session, so we'll look for a pending transmit queue
 			var queue = pendingTransmitQueuesByDomain[domain];
@@ -336,6 +338,7 @@ function handleSwitchedMessage(message) {
 				// for a session to be completed, so we just add to that queue
 				queue.push(message);
 			} else {
+				console.log("braid-federation:  New domain connection required", message);
 				// There's no queue, so we need to initiate a new connection,
 				// understanding that they are just then going to call us back,
 				// at which point we will process the pending queue at that point

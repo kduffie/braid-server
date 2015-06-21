@@ -1,4 +1,4 @@
-function resolveFederationUrl(domain) {
+function resolveServer(domain) {
 	// This is a temporary hack to allow for testing. The suffix of the domain
 	// name is used as the port number to connect to on localhost
 	var parts = domain.split(".");
@@ -7,5 +7,5 @@ function resolveFederationUrl(domain) {
 }
 
 module.exports = {
-	resolveFederationUrl : resolveFederationUrl
+	resolveServer : resolveServer
 };
