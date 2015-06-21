@@ -15,6 +15,21 @@
 		.hidden {
 			display: none;
 		}
+		#messagePanel {
+			background-color: #fff;
+			border: #aaa;
+			padding: 5px;
+			margin: 15px 0;
+			min-height: 15px;
+		}
+		.fromMe {
+			color: #aaa;
+			margin: 5px 0;
+		}
+		.fromThem {
+			color: #55f;
+			margin: 5px 0;
+		}
 	</style>
 	<script src='braid-client-web.js'></script>
 	<script>
@@ -26,16 +41,31 @@
 		var loc = getLocation(document.location);
 		var braidClient = new BraidClient(loc.hostname, loc.port);
 		var connected = false;
+		var connecting = false;
 		
 		function getElement(id) {
 			return document.getElementById(id);
 		}
 		
 		function connect(callback) {
-			if (connected) {
+		    if (connected) {
 				callback();
+			} else if (connecting) {
+		    	setTimeout(connect(callback), 250);
 			} else {
+			    connecting = true;
 				braidClient.connect(callback);
+				braidClient.onImReceived(function(message) {
+					var newItem = document.createElement("div");
+					newItem.setAttribute('class', 'fromThem');
+    				var textnode = document.createTextNode(message.from.userId + ": " + message.data.message);
+    				newItem.appendChild(textnode);
+    				var panel = document.getElementById("messagePanel");
+    				panel.appendChild(newItem);
+    				if (getElement('recipient').value.length === 0) {
+    					getElement('recipient').value = message.from.userId + "@" + message.from.domain;
+    				}
+				});
 			}
 		}
 		
@@ -58,6 +88,7 @@
 		}
 		
 		function onActivated(err, reply) {
+		    connecting = false;
 			if (err) {
 				alert(err);
 			} else {
@@ -107,6 +138,19 @@
 				}
 			});
 		}
+		
+		function onSendImClick() {
+			var newItem = document.createElement("div");
+			newItem.setAttribute('class', 'fromMe');
+    		var textnode = document.createTextNode("me: " + getElement('message').value);
+    		newItem.appendChild(textnode);
+    		var panel = document.getElementById("messagePanel");
+    		panel.appendChild(newItem);
+		
+			braidClient.sendTextMessage(getElement('recipient').value, getElement('message').value);
+			getElement('message').value = '';
+			getElement('message').focus();
+		}
 	</script>
 </head>
 <body style='font-family:sans-serif;font-size:10pt;'>
@@ -135,7 +179,16 @@
 			<h3>Roster</h3>
 			<input id='subscriber' type='text' placeholder='subscriber'/>
 			<button onclick='onSubscribeClick()'>subscribe</button> <button onclick='onUnsubscribeClick()'>unsubscribe</button> <button onclick='onPingClick()'>ping</button> <button onclick='onRosterClick()'>roster</button>
+		</section>
 		<section>
+			<h3>Instant Messages</h3>
+			<input id='recipient' type='text' placeholder='recipient'/>
+			<input id='message' type='text' placeholder='enter text message for recipient' style='width:300px;'/>
+			<button onclick='onSendImClick()'>send</button>
+			<div id='messagePanel'>
+				<div id='lastMessage'></div>
+			</div>
+		</section>
 	</div>
 	<script>
 		getElement('userid').value = localStorage.getItem('braid-userid');

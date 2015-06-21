@@ -26,7 +26,6 @@ function resolveServer(domain, callback) {
 		}
 		// TODO: This should be wss rather than ws once we go secure
 	});
-
 }
 
 module.exports = {

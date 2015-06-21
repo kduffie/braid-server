@@ -122,7 +122,7 @@ function start() {
 			federation : require('./braid-federation').clientCapabilities
 		};
 		config.federation.capabilities = {
-			auth : require('./braid-auth-server').federationCapabilities,
+			auth : require('./braid-auth').federationCapabilities,
 			roster : require('./braid-roster').federationCapabilities,
 			federation : require('./braid-federation').federationCapabilities
 		};
