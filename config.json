@@ -1,7 +1,7 @@
 {
 	"domain": "example.org",
 	"mongo" : {
-		"mongoUrl" : "mongodb://localhost:27017/braid",
+		"mongoUrl" : "mongodb://localhost:27017/braid_{domain}",
 		"options" : {}
 	},
 	"ssl" : {

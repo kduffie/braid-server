@@ -1,9 +1,11 @@
 var MongoClient = require('mongodb').MongoClient;
 var async = require('async');
 
-function BraidDb(mongoUrl, options) {
-	this.mongoUrl = mongoUrl;
-	this.options = options;
+var config;
+
+function BraidDb() {
+	this.mongoUrl = config.mongo.mongoUrl;
+	this.options = config.mongo.options;
 	this.accounts = null;
 	this.subscriptions = null;
 	this.userTiles = null;
@@ -443,8 +445,9 @@ BraidDb.prototype.deleteTileProperty = function(tileId, name, callback) {
 
 var braidDb;
 
-function initialize(config, callback) {
-	braidDb = new BraidDb(config.mongo.mongoUrl, config.mongo.options);
+function initialize(configuration, callback) {
+	config = configuration;
+	braidDb = new BraidDb();
 	braidDb.open(callback);
 }
 

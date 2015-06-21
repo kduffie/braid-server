@@ -37,6 +37,7 @@ function FederationSession() {
 }
 
 FederationSession.prototype.initializeBasedOnOutbound = function(domain, connection) {
+	console.log("federation: opening federation-request connection to ", domain);
 	this.type = 'outbound';
 	this.connection = connection;
 	this.foreignDomain = domain;
@@ -51,6 +52,7 @@ FederationSession.prototype.initializeBasedOnOutbound = function(domain, connect
 };
 
 FederationSession.prototype.initializeBasedOnInbound = function(connection) {
+	console.log("federation: connection opened by remote");
 	this.type = 'inbound';
 	this.connection = connection;
 	this.initializeSocket();
@@ -58,6 +60,7 @@ FederationSession.prototype.initializeBasedOnInbound = function(connection) {
 };
 
 FederationSession.prototype.initiateBasedOnFederationRequest = function(foreignDomain, token, connection) {
+	console.log("federation: opening callback connection to " + foreignDomain);
 	this.type = 'federation';
 	this.connection = connection;
 	this.initializeSocket();
@@ -78,6 +81,7 @@ FederationSession.prototype.onSocketMessageReceived = function(msg) {
 	if (!message) {
 		return;
 	}
+	console.log("federation: RX (" + this.foreignDomain + ")", message);
 	if (!message.type) {
 		this.sendErrorResponseIfAppropriate(message, "Invalid message.  Missing type.", 400, true);
 		return;
@@ -151,6 +155,8 @@ FederationSession.prototype.handleCallbackReply = function(message) {
 };
 
 FederationSession.prototype.activateSession = function(domain) {
+	console.log("federation: activating session with " + domain);
+	this.foreignDomain = domain;
 	this.state = 'active';
 	activeSessionsByDomain[domain] = this;
 	delete pendingTokensByDomain[domain];
@@ -176,7 +182,9 @@ FederationSession.prototype.handleFederateRequest = function(message) {
 	if (token) {
 		// Now we have a token. We will now close our connection, and initiate
 		// a new outbound connection with the token
+		console.log("federation: opening callback connection to " + message.from.domain);
 		var connectionUrl = domainNameServer.resolveFederationUrl(message.from.domain);
+		console.log("federation: using URL " + connectionUrl);
 		var ws = new WebSocket(connectionUrl);
 		ws.on('open', function(ws) {
 			var session = new FederationSession();
@@ -255,6 +263,7 @@ FederationSession.prototype.kickTransmit = function() {
 		this.transmitInProgress = true;
 		var pendingItem = this.transmitQueue.shift();
 		if (pendingItem.message) {
+			console.log("federation: TX (" + this.foreignDomain + ")", pendingItem.message);
 			this.connection.send(JSON.stringify(pendingItem.message), function() {
 				if (pendingItem.callback) {
 					pendingItem.callback();
@@ -279,6 +288,7 @@ FederationSession.prototype.close = function() {
 };
 
 FederationSession.prototype.finalize = function() {
+	console.log("federation: closing connection with " + this.foreignDomain);
 	this.state = 'closed';
 	sessionsById[this.id];
 	eventBus.fire('federation-session-closed', this);
@@ -303,6 +313,7 @@ function initiateFederation(domain) {
 	// a callback connection
 	var connectionUrl = domainNameServer.resolveServer(domain);
 	var session = new FederationSession();
+	console.log("federation: initiating connection to " + domain + " at " + connectionUrl);
 	var ws = new WebSocket(connectionUrl);
 	ws.on('open', function() {
 		session.initializeBasedOnOutbound(domain, ws);

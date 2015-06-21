@@ -10,6 +10,7 @@
 var fs = require('fs');
 var express = require('express');
 var path = require('path');
+var cliArgs = require("command-line-args");
 
 var WebSocketServer = require('ws').Server;
 var http = require('http');
@@ -56,9 +57,43 @@ function startServer() {
 }
 
 function start() {
+
+	/* define the command-line options */
+	var cli = cliArgs([ {
+		name : "help",
+		alias : "h",
+		type : Boolean,
+		description : "Print usage instructions"
+	}, {
+		name : "domain",
+		alias : "d",
+		type : String,
+		defaultOption : true,
+		description : "Domain (e.g., 'example.org'"
+	}, {
+		name : "config",
+		alias : "c",
+		type : String,
+		description : "Path to a configuration file (based on config.json)"
+	} ]);
+
+	/* parse the supplied command-line values */
+	var options = cli.parse();
+
+	/* generate a usage guide */
+	var usage = cli.getUsage({
+		header : "Braid Server: a federated collaboration server",
+		footer : "For more information, visit http://braid.io"
+	});
+
+	if (options.help || (!options.domain && !options.config)) {
+		console.log(usage);
+		process.exit();
+	}
+
 	var configPath = path.join(__dirname, 'config.json');
-	if (args && args.length > 0) {
-		configPath = args[0];
+	if (options.config) {
+		configPath = options.config;
 	}
 	console.log("Reading configuration from " + configPath);
 	fs.readFile(configPath, 'utf8', function(err, data) {
@@ -67,6 +102,13 @@ function start() {
 			process.exit();
 		}
 		config = JSON.parse(data);
+		if (options.domain) {
+			config.domain = options.domain;
+		}
+		if (!config.mongo.mongoUrl) {
+			throw "Invalid configuration.  mongo.mongoUrl is mandatory";
+		}
+		config.mongo.mongoUrl = config.mongo.mongoUrl.replace("{domain}", config.domain.replace(".", "_"));
 		console.log("Braid server initializing for domain: " + config.domain);
 		console.log("Configuration", config);
 		if (!config.domain) {
@@ -74,10 +116,10 @@ function start() {
 		}
 		config.client = {
 			capabilities : {
-				register : {
+				auth : {
 					v : 1
 				},
-				auth : {
+				register : {
 					v : 1
 				},
 				presence : {
