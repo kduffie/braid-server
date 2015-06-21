@@ -23,13 +23,18 @@ Once you have the prerequisites in place, follow these steps:
 
 1. Make sure you have an instance of MongoDb running.  It can be on the same server or elsewhere.
 
-2. Install braid-server:  `npm install braid-server`
+2. Install braid-server:  
 
-3. Create a copy of the config.json file in the root braid-server folder and place it somewhere under your control.  Then
-edit that file to update things specific to your situation -- especially the domain, which should be configured to
-a domain that is under your control.
+     `npm install braid-server -g`
 
-4. Run braid-server:  `node braid-server <path-to-your-config-file>`
+4. Run braid-server:  
+
+     `node braid-server -d <domain>`
+
+If you want more control over the configuration, you can copy config.json from the braid-server
+installation, make changes, and then start braid-server using: 
+
+     `node braid-server -c <path-to-config-file>`
 
 ## Status
 
@@ -44,5 +49,9 @@ There is a lot more to come.  Stay tuned.
 
 ## Test Client
 
-When running, the server also provides a simple web server running on port 8080 by default.  If you point a browser
-there, you'll see that you can use a simple test client that will let you emulate a client to do some simple operations.
+When running, the server also provides a simple web server.  By default, braid-server uses port
+25555.  Point a browser to
+
+    `http://localhost:25555`
+    
+You'll see that you can use a simple test client that will let you emulate a client to do some simple operations.
