@@ -33,9 +33,8 @@ function Session(connection) {
 }
 
 Session.prototype.initialize = function() {
-	this.connection.on("text", this.onSocketMessageReceived.bind(this));
+	this.connection.on("message", this.onSocketMessageReceived.bind(this));
 	this.connection.on("error", this.onConnectionError.bind(this));
-	this.connection.on("binary", this.onBinaryReceived.bind(this));
 	this.connection.on("close", this.onConnectionClosed.bind(this));
 	this.portSwitchPort = messageSwitch.registerResource(this.resource, null, function(message) {
 		this.handleSwitchedMessage(message);
@@ -64,7 +63,7 @@ Session.prototype.handleSwitchedMessage = function(message) {
 		}
 		break;
 	default:
-		break;
+		throw "Unhandled client state: " + this.state;
 	}
 };
 
@@ -91,12 +90,8 @@ Session.prototype.onSocketMessageReceived = function(msg) {
 	if (!message) {
 		return;
 	}
-	if (!message.id) {
-		this.sendError(null, "Invalid message.  Missing id", 400, true);
-		return;
-	}
 	if (!message.type) {
-		this.sendError(message, "Invalid message.  Missing type.", 400, true);
+		this.sendErrorResponseIfAppropriate(message, "Invalid message.  Missing type.", 400, true);
 		return;
 	}
 	if (message.to) {
@@ -134,12 +129,12 @@ Session.prototype.onSocketMessageReceived = function(msg) {
 				messageSwitch.deliver(message);
 				break;
 			default:
-				this.sendError(message, "Invalid state", 400, true);
+				this.sendErrorResponseIfAppropriate(message, "Invalid state", 400, true);
 				break;
 			}
 		} catch (err) {
 			console.error("braid-clients.onSocketMessageReceived", err, err.stack);
-			this.sendError(message, "Internal error: " + err, 500, true);
+			this.sendErrorResponseIfAppropriate(message, "Internal error: " + err, 500, true);
 		}
 	}
 };
@@ -150,17 +145,19 @@ Session.prototype.parseMessage = function(text) {
 		return message;
 	} catch (err) {
 		console.warn("braid-clients.parseMessage error", err, err.stack);
-		this.sendError(null, "Invalid JSON: " + err, 400, true);
 	}
 };
 
-Session.prototype.sendError = function(message, errorMessage, errorCode, close) {
-	var reply = factory.newErrorReply(message, errorCode, errorMessage);
-	this.sendMessage(reply, function() {
-		if (close) {
-			this.close();
-		}
-	}.bind(this));
+Session.prototype.sendErrorResponseIfAppropriate = function(message, errorMessage, errorCode, closeSocket) {
+	if (message.type === 'request' || message.type === 'cast') {
+		this.sendError(message, errorMessage, errorCode, closeSocket);
+		var reply = factory.newErrorReply(message, errorCode, errorMessage);
+		this.sendMessage(reply, function() {
+			if (close) {
+				this.close();
+			}
+		}.bind(this));
+	}
 };
 
 Session.prototype.sendMessage = function(message, callback) {
@@ -189,7 +186,7 @@ Session.prototype.kickTransmit = function() {
 					pendingItem.callback();
 				}
 				this.transmitInProgress = false;
-				setTimeout(this.kickTransmit.bind(this), 1);
+				process.nextTick(this.kickTransmit.bind(this));
 			}.bind(this));
 		} else {
 			this.connection.sendBinary(pendingItem.buffer, function() {
@@ -197,7 +194,7 @@ Session.prototype.kickTransmit = function() {
 					pendingItem.callback();
 				}
 				this.transmitInProgress = false;
-				setTimeout(this.kickTransmit.bind(this), 1);
+				process.nextTick(this.kickTransmit.bind(this));
 			}.bind(this));
 		}
 	}
@@ -215,10 +212,6 @@ Session.prototype.finalize = function() {
 
 Session.prototype.onConnectionError = function(err) {
 	console.log(this, "onConnectionError", err);
-};
-
-Session.prototype.onBinaryReceived = function(inStream) {
-	console.log(this, "onBinaryReceived");
 };
 
 Session.prototype.onConnectionClosed = function(code, reason) {

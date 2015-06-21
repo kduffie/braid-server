@@ -1,17 +1,27 @@
 {
-	"product" : "braid",
-	"version" : "0.2.1",
-	"domain": "example.org",
-	"mongo" : {
-		"mongoUrl" : "mongodb://localhost:27017/braid",
-		"options" : {}
+	domain: "example.org",
+	mongo : {
+		mongoUrl : "mongodb://localhost:27017/braid",
+		options : {}
 	},
-	"client" : {
-		"port" : 25555,
-		"capabilities": {}
+	ssl : {
+		key: "/path/to/your/ssl.key",
+		cert: "/path/to/your/ssl.crt"
 	},
-	"web" : {
-		"enabled" : true,
-		"port" : 8080
+	client : {
+		enabled : true,
+		ssl : false,
+		port : 25555,
+		hello : {
+			// additional data to include in client 'hello' exchanges
+		}
+	},
+	federation : {
+		enabled : true,
+		ssl : false,
+		port : 25557,
+		hello : {
+			// additional data to include in federation 'hello' exchanges
+		}
 	}
 }

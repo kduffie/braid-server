@@ -113,6 +113,22 @@ BraidFactory.prototype.newAuthRequest = function(userId, password, to, from) {
 	return message;
 };
 
+BraidFactory.prototype.newFederateMessage = function(token, to, from) {
+	var message = this.newCastMessage("federate", to, from);
+	message.data = {
+		token : token
+	};
+	return message;
+};
+
+BraidFactory.prototype.newCallbackRequest = function(token, to, from) {
+	var message = this.newCastMessage("callback", to, from);
+	message.data = {
+		token : token
+	};
+	return message;
+};
+
 BraidFactory.prototype.newRosterEntry = function(targetAddress, resources) {
 	if (!resources) {
 		resources = [];

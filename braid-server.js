@@ -8,47 +8,66 @@
  */
 
 var fs = require('fs');
-var ws = require("nodejs-websocket");
 var express = require('express');
 var path = require('path');
 
+var WebSocketServer = require('ws').Server;
+var http = require('http');
+
 var args = process.argv.slice(2);
 var config = {};
-var webServer;
 
 function startServer() {
-	if (config.web && config.web.enabled) {
-		var httpPort = 8080;
-		if (config.web.port) {
-			httpPort = config.web.port;
+	if (config.client && config.client.enabled) {
+		var clientPort = 25555;
+		if (config.client.port) {
+			clientPort = config.client.port;
 		}
-		var app = express();
-		app.use(express.static(path.join(__dirname, 'public')));
-		webServer = app.listen(httpPort);
+		var clientApp = express();
+		clientApp.use(express.static(path.join(__dirname, 'public')));
+
+		var clientServer = http.createServer(clientApp);
+		clientServer.listen(clientPort);
+
+		var clientWss = new WebSocketServer({
+			server : clientServer
+		});
+		clientWss.on('connection', function(conn) {
+			require('./braid-clients').acceptSession(conn);
+		}).listen(clientPort);
 	}
-	var wsPort = 25555;
-	if (config && config.client && config.client.port) {
-		wsPort = config.client.port;
+	if (config.federation && config.federation.enabled) {
+		var federationPort = 25557;
+		if (config.federation.port) {
+			federationPort = config.federation.port;
+		}
+		var federationApp = express();
+
+		var federationServer = http.createServer(federationApp);
+		federationServer.listen(federationPort);
+
+		var federationWss = new WebSocketServer({
+			server : federationServer
+		});
+		federationWss.on('connection', function(conn) {
+			require('./braid-federation').acceptFederationSession(conn);
+		}).listen(federationPort);
 	}
-	console.log("Creating websocket server on port " + wsPort);
-	var server = ws.createServer(function(conn) {
-		require('./braid-clients').acceptSession(conn);
-	}).listen(wsPort);
 }
 
 function start() {
-	if (!args || args.length === 0) {
-		console.log("Missing configuration file argument");
-		process.exit();
-		return;
+	var configPath = path.join(__dirname, 'config.json');
+	if (args && args.length > 0) {
+		configPath = args[0];
 	}
-	console.log("Reading configuration from " + args[0]);
-	fs.readFile(args[0], 'utf8', function(err, data) {
+	console.log("Reading configuration from " + configPath);
+	fs.readFile(configPath, 'utf8', function(err, data) {
 		if (err) {
 			console.log(err);
 			process.exit();
 		}
 		config = JSON.parse(data);
+		console.log("Braid server initializing for domain: " + config.domain);
 		console.log("Configuration", config);
 		if (!config.domain) {
 			throw "You must specify a domain in the configuration";
@@ -61,6 +80,7 @@ function start() {
 			require('./braid-auth-server').initialize(config, braidDb);
 			require('./braid-roster-manager').initialize(config, braidDb);
 			require('./braid-clients').initialize(config);
+			require('./braid-federation').initialize(config);
 			startServer();
 		});
 	});

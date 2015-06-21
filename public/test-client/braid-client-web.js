@@ -562,7 +562,7 @@ function BraidClient(domain, port) {
 BraidClient.prototype.connect = function(callback) {
 	console.log(this.userId + ": connect");
 	this.connectCallback = callback;
-	this.socket = new WebSocket("ws://" + this.domain + ":" + this.port + "/braid", []);
+	this.socket = new WebSocket("ws://" + this.domain + ":" + this.port + "/braid-client", []);
 	this.socket.onopen = this.onSocketOpen.bind(this);
 	this.socket.onerror = this.onSocketError.bind(this);
 	this.socket.onmessage = this.onSocketMessage.bind(this);
