@@ -446,6 +446,7 @@ BraidDb.prototype.deleteTileProperty = function(tileId, name, callback) {
 var braidDb;
 
 function initialize(configuration, callback) {
+	console.log("db: initializing");
 	config = configuration;
 	braidDb = new BraidDb();
 	braidDb.open(callback);

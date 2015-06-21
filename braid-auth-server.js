@@ -118,6 +118,7 @@ function handleMessage(message) {
 }
 
 function initialize(config, db) {
+	console.log("auth: initializing");
 	domain = config.domain;
 	braidDb = db;
 	address = new BraidAddress(null, domain, "!auth");

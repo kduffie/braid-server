@@ -34,7 +34,7 @@ BraidFactory.prototype.newRequest = function(requestType, to, from) {
 };
 
 BraidFactory.prototype.newReply = function(requestMessage, from, to) {
-	if (!to) {
+	if (!to || to.length === 0) {
 		to = [ requestMessage.from ];
 	}
 	var message = this.newMessage(to, requestMessage.id, from);

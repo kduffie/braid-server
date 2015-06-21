@@ -150,7 +150,6 @@ Session.prototype.parseMessage = function(text) {
 
 Session.prototype.sendErrorResponseIfAppropriate = function(message, errorMessage, errorCode, closeSocket) {
 	if (message.type === 'request' || message.type === 'cast') {
-		this.sendError(message, errorMessage, errorCode, closeSocket);
 		var reply = factory.newErrorReply(message, errorCode, errorMessage);
 		this.sendMessage(reply, function() {
 			if (close) {
@@ -220,6 +219,7 @@ Session.prototype.onConnectionClosed = function(code, reason) {
 };
 
 function initialize(cfg) {
+	console.log("clients: initializing");
 	config = cfg;
 }
 

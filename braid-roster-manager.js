@@ -136,6 +136,7 @@ function onClientSessionClosed(session) {
 }
 
 function initialize(config, db) {
+	console.log("roster: initializing");
 	braidDb = db;
 	address = new BraidAddress(null, config.domain, "!roster");
 	messageSwitch.registerResource('!roster', config.domain, handleRosterMessage);

@@ -27,6 +27,7 @@ function startServer() {
 		var clientApp = express();
 		clientApp.use(express.static(path.join(__dirname, 'public')));
 
+		console.log("Listening for client connections on port " + clientPort);
 		var clientServer = http.createServer(clientApp);
 		clientServer.listen(clientPort);
 
@@ -44,6 +45,7 @@ function startServer() {
 		}
 		var federationApp = express();
 
+		console.log("Listening for federation connections on port " + federationPort);
 		var federationServer = http.createServer(federationApp);
 		federationServer.listen(federationPort);
 
@@ -114,27 +116,23 @@ function start() {
 		if (!config.domain) {
 			throw "You must specify a domain in the configuration";
 		}
-		config.client = {
-			capabilities : {
-				auth : {
-					v : 1
-				},
-				register : {
-					v : 1
-				},
-				presence : {
-					v : 1
-				}
+		config.client.capabilities = {
+			auth : {
+				v : 1
+			},
+			register : {
+				v : 1
+			},
+			presence : {
+				v : 1
 			}
 		};
-		config.federation = {
-			capabilities : {
-				federate : {
-					v : 1
-				},
-				callback : {
-					v : 1
-				}
+		config.federation.capabilities = {
+			federate : {
+				v : 1
+			},
+			callback : {
+				v : 1
 			}
 		};
 		require('./braid-db').initialize(config, function(err, braidDb) {
