@@ -9,7 +9,7 @@ Braid is a cross-platform solution for collaboration in a new way -- based on th
 This project is an open-source implementation of a server that implements the Braid protocol.  This
 implementation is built on node.js and its only mandatory external dependency is MongoDB.
 
-If you want to learn a lot more about Braid, visit our wiki:  https://github.com/kduffie/braid-server/wiki
+If you want to learn a lot more about Braid, visit [our wiki](https://github.com/kduffie/braid-server/wiki)
 
 ## Installation
 
@@ -21,15 +21,15 @@ To run a braid server, you will need the following prerequisites:
 
 Once you have the prerequisites in place, follow these steps:
 
-1. Make sure you have an instance of MongoDb running.  It can be on the same server or elsewhere.
+- Make sure you have an instance of MongoDb running.  It can be on the same server or elsewhere.
 
-2. Install braid-server:  
+- Install braid-server:  
 
 ```bash
 $ npm install braid-server -g
 ```
 
-4. Run braid-server:  
+- Run braid-server:  
 
 ```bash
 $ node braid-server -d <domain>
