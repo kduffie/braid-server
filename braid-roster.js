@@ -10,7 +10,7 @@ var async = require('async');
 var factory = require('./braid-factory');
 var BraidAddress = require('./braid-address').BraidAddress;
 var newAddress = require('./braid-address').newAddress;
-
+var config;
 var braidDb;
 var address;
 
@@ -200,7 +200,8 @@ function onClientSessionClosed(session) {
 	}
 }
 
-function initialize(config, db) {
+function initialize(configuration, db) {
+	config = configuration;
 	console.log("roster: initializing");
 	braidDb = db;
 	address = new BraidAddress(null, config.domain, "!roster");
