@@ -147,6 +147,31 @@ function initialize(config, db) {
 	eventBus.on('client-session-closed', onClientSessionClosed);
 }
 
+var clientCapabilities = {
+	v : 1,
+	subscriptions : {
+		v : 1
+	},
+	roster : {
+		v : 1
+	},
+	presence : {
+		v : 1
+	}
+};
+
+var federationCapabilities = {
+	v : 1,
+	subscriptions : {
+		v : 1
+	},
+	presence : {
+		v : 1
+	}
+};
+
 module.exports = {
+	clientCapabilities : clientCapabilities,
+	federationCapabilities : federationCapabilities,
 	initialize : initialize
 };

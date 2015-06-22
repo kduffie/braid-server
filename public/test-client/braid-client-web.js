@@ -39,7 +39,7 @@ if (typeof module !== 'undefined') {
 
 // braid-factory: Building braid objects
 
-var messageId = 1;
+var messageId = Math.floor(Math.random() * 20) * 100 + 1;
 
 function BraidFactory() {
 }
@@ -194,6 +194,14 @@ BraidFactory.prototype.newTileAcceptMessage = function(to, from, tileId) {
 	var message = this.newCastMessage("tile-accept", to, from);
 	message.data = {
 		tileId : tileId
+	};
+	return message;
+};
+
+BraidFactory.prototype.newTextMessage = function(textMessage, to, from) {
+	var message = this.newCastMessage("im", to, from);
+	message.data = {
+		message : textMessage
 	};
 	return message;
 };
@@ -559,6 +567,10 @@ function BraidClient(domain, port) {
 	this.state = 'pending';
 }
 
+BraidClient.prototype.onImReceived = function(handler) {
+	this.imHandler = handler;
+};
+
 BraidClient.prototype.connect = function(callback) {
 	console.log(this.userId + ": connect");
 	this.connectCallback = callback;
@@ -678,6 +690,12 @@ BraidClient.prototype.pingEndpoint = function(user, callback) {
 	}.bind(this));
 };
 
+BraidClient.prototype.sendTextMessage = function(user, textMessage) {
+	var to = this.parseAddressEntry(user);
+	var message = factory.newTextMessage(textMessage, to);
+	this.sendMessage(message);
+};
+
 BraidClient.prototype.requestRoster = function(callback) {
 	console.log(this.userId + ": requestRoster");
 	var cast = factory.newRosterRequest();
@@ -742,6 +760,9 @@ BraidClient.prototype.onSocketMessage = function(event) {
 		case 'presence':
 			this.handlePresence(message);
 			break;
+		case 'im':
+			this.handleIm(message);
+			break;
 		default:
 			console.log("Unhandled cast received", message);
 			break;
@@ -757,6 +778,12 @@ BraidClient.prototype.onSocketMessage = function(event) {
 		}
 	} else {
 		console.log("Unhandled message received", message);
+	}
+};
+
+BraidClient.prototype.handleIm = function(message) {
+	if (this.imHandler) {
+		this.imHandler(message);
 	}
 };
 
@@ -826,6 +853,10 @@ BraidClient.prototype.close = function() {
 };
 
 BraidClient.prototype.finalize = function() {
+};
+
+BraidClient.prototype.sendMessage = function(message) {
+	this.socket.send(JSON.stringify(message));
 };
 
 BraidClient.prototype.sendRequest = function(requestMessage, callback) {
