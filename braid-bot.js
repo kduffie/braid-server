@@ -18,39 +18,7 @@ function handlePing(message, to) {
 	sendMessage(reply);
 }
 
-function handleDirectedMessage(message, to) {
-	getUserRecord(to.userId, function(err, userRecord) {
-		if (err) {
-			console.warn("braid-client-bot: error getting user record", err);
-		} else if (userRecord) {
-			switch (message.type) {
-			case 'request':
-				switch (message.request) {
-				case 'ping':
-					handlePing(message, to);
-					break;
-				}
-				break;
-			case 'cast':
-				switch (message.request) {
-				case 'im':
-					break;
-				case 'tile-share':
-					break;
-				}
-				break;
-			case 'reply':
-				break;
-			case 'error':
-				break;
-			}
-		} else {
-			console.warn("braid-client-bot: ignoring message sent to non-existent user: " + to.userId);
-		}
-	});
-}
-
-function handleUndirectedMessage(message, to) {
+function handleMessage(message, to, isDirected) {
 	getUserRecord(to.userId, function(err, userRecord) {
 		if (err) {
 			console.warn("braid-client-bot: error getting user record", err);
@@ -98,17 +66,20 @@ function messageHandler(message) {
 		return;
 	}
 
+	// If the message is specifically to my resource on behalf of any user, I'll handle it
 	for (var i = 0; i < message.to.length; i++) {
 		var to = message.to[i];
-		// If the message is specifically to my resource on behalf of any user, I'll handle it
 		if (to.userId && to.resource === BOT_RESOURCE && to.domain === config.domain) {
-			handleDirectedMessage(message, to);
+			handleMessage(message, to, true);
 			return;
 		}
+	}
 
-		// If the message is sent to a user in my domain, but without a resource, then I'll act as an active session
+	// If the message is sent to a user in my domain, but without a resource, then I'll act as an active session
+	for (var i = 0; i < message.to.length; i++) {
+		var to = message.to[i];
 		if (to.userId && !to.resource && to.domain === config.domain) {
-			handleUndirectedMessage(message, to);
+			handleMessage(message, to, false);
 			return;
 		}
 	}

@@ -137,7 +137,7 @@ function start() {
 			require('./braid-roster').initialize(config, braidDb);
 			require('./braid-clients').initialize(config);
 			require('./braid-federation').initialize(config);
-			require('./braid-client-bot').initialize(config);
+			require('./braid-bot').initialize(config);
 			startServer();
 		});
 	});

@@ -333,7 +333,7 @@ BraidClient.prototype.sendRequest = function(requestMessage, callback) {
 		if (cb) {
 			cb(this.userId + ": Request timeout");
 		}
-	}.bind(this), 30000);
+	}.bind(this), 15000);
 	console.log(this.userId + ": REQUEST", requestMessage);
 	this.socket.send(JSON.stringify(requestMessage));
 };
