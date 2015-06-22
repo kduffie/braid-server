@@ -29,17 +29,19 @@ Once you have the prerequisites in place, follow these steps:
 $ npm install braid-server -g
 ```
 
+(Note:  you may need to use `sudo` on Mac systems.)
+
 - Run braid-server:  
 
 ```bash
-$ node braid-server -d <domain>
+$ braid-server -d <domain>
 ```
 
 Alternatively, if you want more control over the configuration, you can copy config.json from the braid-server
 installation, make changes, and then start braid-server using: 
 
 ```bash
-$ node braid-server -c <path-to-config-file>
+$ braid-server -c <path-to-config-file>
 ```
 
 ## Getting Started

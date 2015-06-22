@@ -170,11 +170,15 @@ BraidClient.prototype.onSocketOpen = function(event) {
 	console.log(this.userId + ": onSocketOpen");
 	if (this.connectCallback) {
 		this.connectCallback();
+		this.connectCallback = null;
 	}
 };
 
 BraidClient.prototype.onSocketError = function(event) {
 	console.log(this.userId + ": onSocketError", event);
+	if (this.connectCallback) {
+		this.connectCallback("Failure connecting to server");
+	}
 };
 
 BraidClient.prototype.dumpRoster = function(event) {
