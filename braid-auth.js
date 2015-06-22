@@ -3,16 +3,23 @@ var messageSwitch = require('./braid-message-switch');
 var BraidAddress = require('./braid-address').BraidAddress;
 var factory = require('./braid-factory');
 var eventBus = require('./braid-event-bus');
+var lru = require('lru-cache');
 
 var braidDb;
 var address;
 var domain;
+
+var userCache = lru({
+	max : 5000,
+	maxAge : 1000 * 60 * 60
+});
 
 function createUser(userId, password, callback) {
 	bcrypt.genSalt(10, function(err, salt) {
 		bcrypt.hash(password, salt, function(err, hash) {
 			var userRecord = factory.newAccountRecord(userId, domain, hash);
 			braidDb.insertAccount(userRecord, function() {
+				userCache.set(userId, userRecord);
 				eventBus.fire('user-added', userRecord);
 				callback(null, userRecord);
 			});
@@ -29,12 +36,12 @@ function processRegisterMessage(message) {
 	var password = message.data.password;
 	if (!userId.match(/[a-z][a-z\.0-9]?/)) {
 		messageSwitch.deliver(factory.newErrorReply(message, 406, "Invalid userId", address));
-	} else if (userId.length > 64) {
-		messageSwitch.deliver(factory.newErrorReply(message, 406, "UserId is too long", address));
+	} else if (userId.length < 4 || userId.length > 64) {
+		messageSwitch.deliver(factory.newErrorReply(message, 406, "UserId must be 4 to 64 characters", address));
 	} else if (password.length < 4 || password.length > 64) {
 		messageSwitch.deliver(factory.newErrorReply(message, 406, "Password must be 4 to 64 characters", address));
 	} else {
-		braidDb.findAccountById(userId, function(err, existing) {
+		getUserRecord(userId, function(err, existing) {
 			if (err) {
 				console.error(err);
 				console.trace();
@@ -58,7 +65,7 @@ function processRegisterMessage(message) {
 }
 
 function authenticateUser(userId, password, callback) {
-	braidDb.findAccountById(userId, function(err, user) {
+	getUserRecord(userId, function(err, user) {
 		if (err) {
 			callback(err);
 		} else if (user) {
@@ -117,6 +124,31 @@ function handleMessage(message) {
 	}
 }
 
+function getUserRecord(userId, callback) {
+	var record = userCache.get(userId);
+	if (record) {
+		if (record.notFound) {
+			callback(null, null);
+		} else {
+			callback(null, record);
+		}
+	} else {
+		braidDb.findAccountById(userId, function(err, record) {
+			if (err) {
+				callback(err);
+			} else if (record) {
+				userCache.set(userId, record);
+				callback(null, record);
+			} else {
+				userCache.set(userId, {
+					notFound : true
+				});
+				callback(null, null);
+			}
+		});
+	}
+}
+
 function initialize(config, db) {
 	console.log("auth: initializing");
 	domain = config.domain;
@@ -142,5 +174,6 @@ var federationCapabilities = {
 module.exports = {
 	clientCapabilities : clientCapabilities,
 	federationCapabilities : federationCapabilities,
-	initialize : initialize
+	initialize : initialize,
+	getUserRecord : getUserRecord
 };

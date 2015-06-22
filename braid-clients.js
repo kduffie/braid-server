@@ -42,6 +42,10 @@ Session.prototype.initialize = function() {
 };
 
 Session.prototype.handleSwitchedMessage = function(message) {
+	if (message.from && message.from.resource && message.from.resource === this.resource) {
+		// Ignore reflected messages
+		return;
+	}
 	switch (this.state) {
 	case 'unauthenticated':
 		if (this.authenticationServerAddress.equals(message.from)) {
@@ -54,12 +58,29 @@ Session.prototype.handleSwitchedMessage = function(message) {
 		}
 		break;
 	case 'active':
-		// If we sent the message, we don't want to send it back, because we are listening to
-		// everything sent to the user's address, and the user may send to their own address
-		// to get to other sessions with the same identity
-		if (!this.from || this.from.resource !== this.resource) {
-			this.sendMessage(message);
+		// We are listening to all message with my address. But if there is a resource on it, and it
+		// isn't mine, then I will ignore the message.
+		var foundMe = true;
+		if (message.to && message.to.length > 0) {
+			foundMe = false;
+			for (var i = 0; i < message.to.length; i++) {
+				var to = message.to[i];
+				if (to.resource) {
+					if (to.resource === this.resource) {
+						foundMe = true;
+						break;
+					}
+				} else {
+					foundMe = true;
+					break;
+				}
+			}
 		}
+		if (!foundMe) {
+			// The message was directed to a resource, and it wasn't mine.
+			return;
+		}
+		this.sendMessage(message);
 		break;
 	default:
 		throw "Unhandled client state: " + this.state;
@@ -156,7 +177,7 @@ Session.prototype.sendErrorResponseIfAppropriate = function(message, errorMessag
 	if (message.type === 'request' || message.type === 'cast') {
 		var reply = factory.newErrorReply(message, errorCode, errorMessage);
 		this.sendMessage(reply, function() {
-			if (close) {
+			if (closeSocket) {
 				this.close();
 			}
 		}.bind(this));

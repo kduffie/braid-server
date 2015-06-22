@@ -30,6 +30,14 @@
 			color: #55f;
 			margin: 5px 0;
 		}
+		.mediumBox {
+			width: 200px;
+			margin: 3px 0;
+		}
+		.wideBox {
+			width: 400px;
+			margin: 3px 0;
+		}
 	</style>
 	<script src='braid-address.js'></script>
 	<script src='braid-factory.js'></script>
@@ -67,9 +75,7 @@
     				newItem.appendChild(textnode);
     				var panel = document.getElementById("messagePanel");
     				panel.appendChild(newItem);
-    				if (getElement('recipient').value.length === 0) {
-    					getElement('recipient').value = message.from.userId + "@" + message.from.domain;
-    				}
+    				getElement('recipient').value = message.from.userId + "@" + message.from.domain + "/" + message.from.resource;
 				});
 			}
 		}
@@ -124,16 +130,16 @@
 		}
 
 		function onPingClick() {
+		    getElement('btnPing').disabled = true;
 			var subscriber;
 			if (getElement('subscriber').value.length > 0) {
 				subscriber = getElement('subscriber').value;
 			} 
 			braidClient.pingEndpoint(subscriber, function(err, reply) {
+				getElement('btnPing').disabled = false;					
 				if (err) {
 					alert(err);
-				} else if (reply.type === 'reply') {
-					alert("Ping successful");					
-				} else {
+				} else if (reply.type !== 'reply') {
 					alert(reply.message);
 				}
 			});
@@ -189,13 +195,13 @@
 	<div id='activeSession' class='hidden'>
 		<section>
 			<h3>Roster</h3>
-			<input id='subscriber' type='text' placeholder='subscriber'/>
-			<button onclick='onSubscribeClick()'>subscribe</button> <button onclick='onUnsubscribeClick()'>unsubscribe</button> <button onclick='onPingClick()'>ping</button> <button onclick='onRosterClick()'>roster</button>
+			<input id='subscriber' type='text' placeholder='recipient' class='mediumBox'/>
+			<button onclick='onSubscribeClick()'>subscribe</button> <button onclick='onUnsubscribeClick()'>unsubscribe</button> <button id='btnPing' onclick='onPingClick()'>ping</button> <button onclick='onRosterClick()'>roster</button>
 		</section>
 		<section>
 			<h3>Instant Messages</h3>
-			<input id='recipient' type='text' placeholder='recipient'/>
-			<input id='message' type='text' placeholder='enter text message for recipient' style='width:300px;'/>
+			<input id='recipient' type='text' placeholder='recipient' class='wideBox'/>
+			<input id='message' type='text' placeholder='enter text message for recipient' class='wideBox'/>
 			<button onclick='onSendImClick()'>send</button>
 			<div id='messagePanel'>
 				<div id='lastMessage'></div>
