@@ -12,15 +12,16 @@ function createProxyAddress(userId) {
 }
 
 function handlePing(message, to) {
-	var reply = factory.newReply(message, to);
+	var reply = factory.newReply(message, createProxyAddress(to.userId));
 	sendMessage(reply);
 }
 
-function handleDirectedMessage(message) {
+function handleDirectedMessage(message, to) {
 	switch (message.type) {
 	case 'request':
 		switch (message.request) {
 		case 'ping':
+			handlePing(message, to);
 			break;
 		}
 		break;
@@ -44,6 +45,7 @@ function handleUndirectedMessage(message, to) {
 	case 'request':
 		switch (message.request) {
 		case 'ping':
+			handlePing(message, to);
 			break;
 		}
 		break;
@@ -92,6 +94,7 @@ function messageHandler(message) {
 }
 
 function initialize(configuration) {
+	console.log("braid-client-bot: initializing");
 	config = configuration;
 	messageSwitch.registerHook(messageHandler);
 

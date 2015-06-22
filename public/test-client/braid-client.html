@@ -53,7 +53,7 @@
 		    if (connected) {
 				callback();
 			} else if (connecting) {
-		    	setTimeout(connect(callback), 250);
+		    	setTimeout(connect(callback), 1000);
 			} else {
 			    connecting = true;
 				braidClient.connect(callback);
