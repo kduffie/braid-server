@@ -39,7 +39,6 @@ BraidFactory.prototype.newReply = function(requestMessage, from, to) {
 	}
 	var message = this.newMessage(to, requestMessage.id, from);
 	message.type = "reply";
-	message.code = 200;
 	if (requestMessage.request) {
 		message.request = requestMessage.request;
 	}
@@ -114,7 +113,7 @@ BraidFactory.prototype.newAuthRequest = function(userId, password, to, from) {
 };
 
 BraidFactory.prototype.newFederateMessage = function(token, to, from) {
-	var message = this.newCastMessage("federate", to, from);
+	var message = this.newRequest("federate", to, from);
 	message.data = {
 		token : token
 	};
@@ -122,7 +121,7 @@ BraidFactory.prototype.newFederateMessage = function(token, to, from) {
 };
 
 BraidFactory.prototype.newCallbackRequest = function(token, to, from) {
-	var message = this.newCastMessage("callback", to, from);
+	var message = this.newRequest("callback", to, from);
 	message.data = {
 		token : token
 	};
@@ -134,7 +133,8 @@ BraidFactory.prototype.newRosterEntry = function(targetAddress, resources) {
 		resources = [];
 	}
 	return {
-		target : targetAddress,
+		userId : targetAddress.userId,
+		domain : targetAddress.domain,
 		resources : resources
 	};
 };

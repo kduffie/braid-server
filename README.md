@@ -42,6 +42,29 @@ installation, make changes, and then start braid-server using:
 $ node braid-server -c <path-to-config-file>
 ```
 
+## Getting Started
+
+To get started, try out your braid server using the simple built-in test client.  Assuming you used the default port
+assignments, you can now point a web browser to `http://localhost:25555`.  This should open up the server's website.
+On that page, you'll see a link to a test client.  Click on it.
+
+This test client lets you connect to the server as a braid client running inside your browser.  It does very little,
+but allows you to see the basic interactions between a client and server.  
+
+1. Open the browser's inspector and choose the Console tab so you can see what is happening between client and server.
+2. Click on 'hello' to connect to the server and issue a 'hello' request.  
+3. Enter credentials (e.g., 'joe', 'password'), check the 'register' box, and click 'connect'.
+4. Once connected, additional panels will be displayed showing more things you can now do.
+5. Open a second browser with a different browser identity (incognito if you prefer) -- so that browser cookies are distinct.
+6. In the second browser, point to the same address and navigate to the test client.
+7. Enter a second set of credentials (.e.g, 'bob', 'password'), check the register box, and click 'connect'.
+8. Now you have two active clients against the same server.  
+9. In the first browser, under Instant Messages, enter 'bob' in the 'recipient' field and enter a message then click 'send'.
+10. In the second browser, you should see the message from joe appear.
+11. To see subscriptions in action, try entering a userId in the subscribe area and click 'subscribe'.  Then refresh your browser and see how the other user receives notifications (in the inspector window).
+
+Note that you can't federate your braid server until you can update DNS entries so that the server is associated with the braid service.
+
 ## Status
 
 The server is still under development.  At this point, the server supports:
@@ -53,14 +76,3 @@ The server is still under development.  At this point, the server supports:
 - *Federation*:  braid servers for different domains can talk to each other and exchange messages between their clients
 
 There is a lot more to come.  Stay tuned.
-
-## Test Client
-
-When running, the server also provides a simple web server.  By default, braid-server uses port
-25555.  Point a browser to
-
-```bash
-http://localhost:25555
-```
-    
-You'll see that you can use a simple test client that will let you emulate a client to do some simple operations.
