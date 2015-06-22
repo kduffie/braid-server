@@ -5,9 +5,13 @@
  */
 
 function BraidAddress(userId, domain, resource) {
-	this.userId = userId;
+	if (userId) {
+		this.userId = userId;
+	}
 	this.domain = domain;
-	this.resource = resource;
+	if (resource) {
+		this.resource = resource;
+	}
 }
 
 BraidAddress.prototype.asString = function(omitResource) {

@@ -128,6 +128,11 @@ BraidFactory.prototype.newCallbackRequest = function(token, to, from) {
 	return message;
 };
 
+BraidFactory.prototype.newCloseRequest = function(to, from) {
+	var message = this.newRequest("close", to, from);
+	return message;
+};
+
 BraidFactory.prototype.newRosterEntry = function(targetAddress, resources) {
 	if (!resources) {
 		resources = [];

@@ -702,15 +702,15 @@ BraidClient.prototype.requestRoster = function(callback) {
 	this.sendRequest(cast, callback);
 };
 
-BraidClient.prototype.subscribe = function(userId) {
-	console.log(this.userId + ": subscribe", userId);
+BraidClient.prototype.subscribe = function(user) {
+	console.log(this.userId + ": subscribe", user);
 	var to = this.parseAddressEntry(user);
 	var cast = factory.newSubscribeMessage(to);
 	this.sendCast(cast);
 };
 
-BraidClient.prototype.unsubscribe = function(userId) {
-	console.log(this.userId + ": unsubscribe", userId);
+BraidClient.prototype.unsubscribe = function(user) {
+	console.log(this.userId + ": unsubscribe", user);
 	var to = this.parseAddressEntry(user);
 	var cast = factory.newUnsubscribeMessage(to);
 	this.sendCast(cast);

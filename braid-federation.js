@@ -149,6 +149,27 @@ FederationSession.prototype.onSocketMessageReceived = function(msg) {
 				}
 				break;
 			case 'active':
+				switch (message.type) {
+				case 'request':
+					switch (message.request) {
+					case 'close':
+						this.handleCloseRequest(message);
+						return;
+					}
+					break;
+				}
+				messageSwitch.deliver(message);
+				break;
+			case 'closing':
+				switch (message.type) {
+				case 'reply':
+					switch (message.request) {
+					case 'close':
+						this.handleCloseReply(message);
+						return;
+					}
+					break;
+				}
 				messageSwitch.deliver(message);
 				break;
 			default:
@@ -160,6 +181,18 @@ FederationSession.prototype.onSocketMessageReceived = function(msg) {
 			this.sendErrorResponseIfAppropriate(message, "Internal error: " + err, 500, true);
 		}
 	}
+};
+
+FederationSession.prototype.handleCloseRequest = function(message) {
+	this.deactivateSession();
+	setTimeout(function() {
+		var reply = factory.newReply(message, this.domainAddress);
+		this.sendMessage(reply);
+	}.bind(this), 500);
+};
+
+FederationSession.prototype.handleCloseReply = function(message) {
+	this.close();
 };
 
 FederationSession.prototype.handleCallbackReply = function(message) {
@@ -178,6 +211,14 @@ FederationSession.prototype.activateSession = function(domain) {
 			this.sendMessage(pendingTransmits[i]);
 		}
 		delete pendingTransmitQueuesByDomain[domain];
+	}
+};
+
+FederationSession.prototype.deactivateSession = function() {
+	console.log("federation: deactivating session with " + this.foreignDomain);
+	this.state = 'closed';
+	if (this.foreignDomain) {
+		delete activeSessionsByDomain[this.foreignDomain];
 	}
 };
 
@@ -205,7 +246,9 @@ FederationSession.prototype.handleFederateRequest = function(message) {
 			console.warn("Unable to establish connection to foreign domain: " + domain, err);
 			delete pendingTransmitQueuesByDomain[domain];
 		});
-		this.close();
+		var reply = factory.newReply(message, this.domainAddress);
+		this.sendMessage(reply);
+		setTimeout(this.close().bind(this), 300);
 	} else {
 		this.sendErrorResponseIfAppropriate(message, "Invalid federate request.  Missing token.", 400, false);
 	}
@@ -293,6 +336,17 @@ FederationSession.prototype.kickTransmit = function() {
 	}
 };
 
+FederationSession.prototype.closeBecauseIdle = function() {
+	console.log('federation: closing connection with ' + this.foreignDomain + ' because idle');
+	if (this.foreignDomain) {
+		this.state = 'closing';
+		var message = factory.newCloseRequest(new BraidAddress(null, this.foreignDomain), this.domainAddress);
+		this.sendMessage(message);
+	} else {
+		this.close();
+	}
+};
+
 FederationSession.prototype.close = function() {
 	this.finalize();
 };
@@ -300,7 +354,10 @@ FederationSession.prototype.close = function() {
 FederationSession.prototype.finalize = function() {
 	console.log("federation: closing connection with " + this.foreignDomain);
 	this.state = 'closed';
-	sessionsById[this.id];
+	delete sessionsById[this.id];
+	if (this.foreignDomain) {
+		delete activeSessionsByDomain[this.foreignDomain];
+	}
 	eventBus.fire('federation-session-closed', this);
 };
 
@@ -390,7 +447,7 @@ function initialize(cfg) {
 		}
 		for (var i = 0; i < toClose.length; i++) {
 			console.log("Closing federation session to " + sessionsById.foreignDomain + " because IDLE");
-			sessionsById[toClose[i]].close();
+			sessionsById[toClose[i]].closeBecauseIdle();
 		}
 	}, 60000);
 }

@@ -30,13 +30,11 @@ function handleMessage(message) {
 	case 'register':
 		assert.equal(message.type, 'reply');
 		assert.equal(message.request, 'register');
-		assert.equal(message.code, 200);
 		handlerCallback();
 		break;
 	case 'auth':
 		assert.equal(message.type, 'reply');
 		assert.equal(message.request, 'auth');
-		assert.equal(message.code, 200);
 		handlerCallback();
 		break;
 	default:
@@ -61,7 +59,7 @@ describe("auth-server:", function() {
 				throw err;
 			}
 			braidDb = db;
-			require('../braid-auth-server').initialize(config, braidDb);
+			require('../braid-auth').initialize(config, braidDb);
 			messageSwitch.registerResource('12345', null, handleMessage);
 			done();
 		});
