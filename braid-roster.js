@@ -71,13 +71,13 @@ function notifyPresence(presenceEntry, includeForeign) {
 			}
 		}
 		async.each(localUsers, function(localUser, callback) {
-			var presenceMessage = factory.newPresenceMessage(presenceEntry, localUser, this.address);
+			var presenceMessage = factory.newPresenceMessage(presenceEntry, localUser, address);
 			messageSwitch.deliver(presenceMessage);
 			callback();
 		});
 		if (includeForeign) {
 			async.each(foreignDomains, function(foreignDomain, callback) {
-				var presenceMessage = factory.newPresenceMessage(presenceEntry, new BraidAddress(null, foreignDomain), this.address);
+				var presenceMessage = factory.newPresenceMessage(presenceEntry, new BraidAddress(null, foreignDomain), address);
 				messageSwitch.deliver(presenceMessage);
 				callback();
 			});
@@ -117,9 +117,9 @@ function handleRosterMessage(message) {
 		// First, we need to make sure that they aren't telling us about users that aren't in their own domain.
 		if (message.data && message.data.address && message.data.address.domain && message.data.address.domain === message.from.domain) {
 			if (message.data.online) {
-				this.onForeignClientSessionActivated(message.data);
+				onForeignClientSessionActivated(message.data);
 			} else {
-				this.onForeignClientSessionClosed(message.data);
+				onForeignClientSessionClosed(message.data);
 			}
 		} else {
 			// This is an invalid presence message. We'll ignore it.

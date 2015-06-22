@@ -1,6 +1,8 @@
 var factory = require('./braid-factory');
 var config;
 var messageSwitch = require('./braid-message-switch');
+var BraidAddress = require('./braid-address').BraidAddress;
+var getUserRecord = require('./braid-auth').getUserRecord;
 var BOT_RESOURCE = '!bot';
 
 function sendMessage(message) {
@@ -17,49 +19,65 @@ function handlePing(message, to) {
 }
 
 function handleDirectedMessage(message, to) {
-	switch (message.type) {
-	case 'request':
-		switch (message.request) {
-		case 'ping':
-			handlePing(message, to);
-			break;
+	getUserRecord(to.userId, function(err, userRecord) {
+		if (err) {
+			console.warn("braid-client-bot: error getting user record", err);
+		} else if (userRecord) {
+			switch (message.type) {
+			case 'request':
+				switch (message.request) {
+				case 'ping':
+					handlePing(message, to);
+					break;
+				}
+				break;
+			case 'cast':
+				switch (message.request) {
+				case 'im':
+					break;
+				case 'tile-share':
+					break;
+				}
+				break;
+			case 'reply':
+				break;
+			case 'error':
+				break;
+			}
+		} else {
+			console.warn("braid-client-bot: ignoring message sent to non-existent user: " + to.userId);
 		}
-		break;
-	case 'cast':
-		switch (message.request) {
-		case 'im':
-			break;
-		case 'tile-share':
-			break;
-		}
-		break;
-	case 'reply':
-		break;
-	case 'error':
-		break;
-	}
+	});
 }
 
 function handleUndirectedMessage(message, to) {
-	switch (message.type) {
-	case 'request':
-		switch (message.request) {
-		case 'ping':
-			handlePing(message, to);
-			break;
+	getUserRecord(to.userId, function(err, userRecord) {
+		if (err) {
+			console.warn("braid-client-bot: error getting user record", err);
+		} else if (userRecord) {
+			switch (message.type) {
+			case 'request':
+				switch (message.request) {
+				case 'ping':
+					handlePing(message, to);
+					break;
+				}
+				break;
+			case 'cast':
+				switch (message.request) {
+				case 'tile-share':
+					break;
+				}
+				break;
+			case 'reply':
+				break;
+			case 'error':
+				break;
+			}
+		} else {
+			console.warn("braid-client-bot: ignoring message sent to non-existent user: " + to.userId);
 		}
-		break;
-	case 'cast':
-		switch (message.request) {
-		case 'tile-share':
-			break;
-		}
-		break;
-	case 'reply':
-		break;
-	case 'error':
-		break;
-	}
+	});
 }
 
 function messageHandler(message) {
@@ -69,6 +87,10 @@ function messageHandler(message) {
 	// If the messages are not sent to anyone, then I'm not interested
 	if (!message.to || message.to.length === 0) {
 		return;
+	}
+
+	if (!message.from) {
+		console.warn("braid-client-bot: message with no 'from'", message);
 	}
 
 	// Don't want to process messages I have sent

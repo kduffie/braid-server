@@ -124,16 +124,16 @@
 		}
 
 		function onPingClick() {
+		    getElement('btnPing').disabled = true;
 			var subscriber;
 			if (getElement('subscriber').value.length > 0) {
 				subscriber = getElement('subscriber').value;
 			} 
 			braidClient.pingEndpoint(subscriber, function(err, reply) {
+				getElement('btnPing').disabled = false;					
 				if (err) {
 					alert(err);
-				} else if (reply.type === 'reply') {
-					alert("Ping successful");					
-				} else {
+				} else if (reply.type !== 'reply') {
 					alert(reply.message);
 				}
 			});
@@ -190,7 +190,7 @@
 		<section>
 			<h3>Roster</h3>
 			<input id='subscriber' type='text' placeholder='subscriber'/>
-			<button onclick='onSubscribeClick()'>subscribe</button> <button onclick='onUnsubscribeClick()'>unsubscribe</button> <button onclick='onPingClick()'>ping</button> <button onclick='onRosterClick()'>roster</button>
+			<button onclick='onSubscribeClick()'>subscribe</button> <button onclick='onUnsubscribeClick()'>unsubscribe</button> <button id='btnPing' onclick='onPingClick()'>ping</button> <button onclick='onRosterClick()'>roster</button>
 		</section>
 		<section>
 			<h3>Instant Messages</h3>

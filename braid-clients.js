@@ -42,6 +42,10 @@ Session.prototype.initialize = function() {
 };
 
 Session.prototype.handleSwitchedMessage = function(message) {
+	if (message.from && message.from.resource && message.from.resource === this.resource) {
+		// Ignore reflected messages
+		return;
+	}
 	switch (this.state) {
 	case 'unauthenticated':
 		if (this.authenticationServerAddress.equals(message.from)) {
@@ -156,7 +160,7 @@ Session.prototype.sendErrorResponseIfAppropriate = function(message, errorMessag
 	if (message.type === 'request' || message.type === 'cast') {
 		var reply = factory.newErrorReply(message, errorCode, errorMessage);
 		this.sendMessage(reply, function() {
-			if (close) {
+			if (closeSocket) {
 				this.close();
 			}
 		}.bind(this));
