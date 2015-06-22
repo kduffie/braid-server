@@ -8,6 +8,7 @@ var resourceRegistrations = {};
 var userRegistrations = {};
 var requestRegistrations = {};
 var foreignDomainRegistrations = [];
+var messageHooks = [];
 
 var id = 1;
 
@@ -19,7 +20,8 @@ var stats = {
 	},
 	messages : {
 		received : 0,
-		delivered : 0
+		delivered : 0,
+		hooked : 0,
 	}
 };
 
@@ -35,7 +37,8 @@ function reset() {
 		},
 		messages : {
 			received : 0,
-			delivered : 0
+			delivered : 0,
+			hooked : 0,
 		}
 	};
 }
@@ -273,11 +276,22 @@ function deliver(message, callback) {
 			callback();
 		}
 	});
+	tasks.push(function(callback) {
+		async.each(messageHooks, function(hook, callback) {
+			hook(message);
+			stats.messages.hooked++;
+			callback();
+		});
+	});
 	async.parallel(tasks, callback);
 }
 
 function getStats() {
 	return stats;
+}
+
+function registerHook(handler) {
+	messageHooks.push(handler);
 }
 
 module.exports = {
@@ -286,6 +300,7 @@ module.exports = {
 	registerResource : registerResource,
 	registerForRequests : registerForRequests,
 	registerForeignDomains : registerForeignDomains,
+	registerHook : registerHook,
 	unregister : unregister,
 	deliver : deliver,
 	getStats : getStats
