@@ -29,6 +29,8 @@ Once you have the prerequisites in place, follow these steps:
 $ npm install braid-server -g
 ```
 
+(Note:  you may need to use `sudo` on Mac systems.)
+
 - Run braid-server:  
 
 ```bash
