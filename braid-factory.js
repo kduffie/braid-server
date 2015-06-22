@@ -156,6 +156,11 @@ BraidFactory.prototype.newRosterEntry = function(targetAddress, resources) {
 	};
 };
 
+BraidFactory.prototype.newRosterRequest = function(to, from) {
+	var message = this.newRequest('roster', to, from);
+	return message;
+};
+
 BraidFactory.prototype.newRosterReply = function(requestMessage, roster, from) {
 	var message = this.newReply(requestMessage, from);
 	message.data = roster;
