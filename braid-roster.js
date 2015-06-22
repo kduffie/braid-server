@@ -54,17 +54,34 @@ function handleUnsubscribeMessage(message) {
 	});
 }
 
-function notifyPresence(presenceEntry) {
+function notifyPresence(presenceEntry, includeForeign) {
 	braidDb.findSubscribersByTarget(presenceEntry.address.userId, presenceEntry.address.domain, function(err, records) {
 		if (err) {
 			throw err;
 		}
-		async.each(records, function(record, callback) {
-			var to = newAddress(record.subscriber);
-			var presenceMessage = factory.newPresenceMessage(presenceEntry, to, address);
+		var localUsers = [];
+		var foreignDomains = [];
+		for (var i = 0; i < records.length; i++) {
+			if (records[i].subscriber.domain === config.domain) {
+				localUsers.push(records[i].subscriber);
+			} else {
+				if (foreignDomains.indexOf(records[i].subscriber.domain) < 0) {
+					foreignDomains.push(records[i].subscriber.domain);
+				}
+			}
+		}
+		async.each(localUsers, function(localUser, callback) {
+			var presenceMessage = factory.newPresenceMessage(presenceEntry, localUser, this.address);
 			messageSwitch.deliver(presenceMessage);
 			callback();
 		});
+		if (includeForeign) {
+			async.each(foreignDomains, function(foreignDomain, callback) {
+				var presenceMessage = factory.newPresenceMessage(presenceEntry, new BraidAddress(null, foreignDomain), this.address);
+				messageSwitch.deliver(presenceMessage);
+				callback();
+			});
+		}
 	});
 }
 
@@ -94,14 +111,62 @@ function handleRosterMessage(message) {
 			});
 		});
 		break;
+	case 'presence':
+		// Presence messages from foreign domains will be directed here. We need to deliver these to the
+		// appropriate subscribers in this domain. And we want to update our own roster accordingly.
+		// First, we need to make sure that they aren't telling us about users that aren't in their own domain.
+		if (message.data && message.data.address && message.data.address.domain && message.data.address.domain === message.from.domain) {
+			if (message.data.online) {
+				this.onForeignClientSessionActivated(message.data);
+			} else {
+				this.onForeignClientSessionClosed(message.data);
+			}
+		} else {
+			// This is an invalid presence message. We'll ignore it.
+			console.warn("Received invalid presence message", message);
+		}
+		break;
 	default:
 		break;
 	}
 }
 
+function onForeignClientSessionActivated(entry) {
+	var address = newAddress(entry.address);
+	console.log("braid-roster: onForeignClientSessionActivated", entry);
+	var key = address.asString();
+	var activeUser = activeUsers[key];
+	if (!activeUser) {
+		activeUser = {
+			address : address,
+			resources : []
+		};
+		activeUsers[key] = activeUser;
+	}
+	activeUser.resources.push(session.userAddress.resource);
+	notifyPresence(entry, false);
+}
+
+function onForeignClientSessionClosed(entry) {
+	console.log("braid-roster: onForeignClientSessionClosed", entry);
+	var address = newAddress(address, true);
+	var key = address.asString();
+	var activeUser = activeUsers[key];
+	if (activeUser) {
+		var index = activeUser.resources.indexOf(address.resource);
+		if (index >= 0) {
+			activeUser.resources.splice(index, 1);
+		}
+		if (activeUser.resources.length === 0) {
+			delete activeUsers[key];
+		}
+	}
+	notifyPresence(entry, false);
+}
+
 function onClientSessionActivated(session) {
 	console.log("braid-roster: onClientSessionActivated", session.userAddress);
-	var entry = factory.newPresenceEntry(session.userAddress, true, session.clientCapabilities);
+	var entry = factory.newPresenceEntry(session.userAddress, true);
 	var address = newAddress(session.userAddress, true);
 	var key = address.asString();
 	var activeUser = activeUsers[key];
@@ -113,7 +178,7 @@ function onClientSessionActivated(session) {
 		activeUsers[key] = activeUser;
 	}
 	activeUser.resources.push(session.userAddress.resource);
-	notifyPresence(entry);
+	notifyPresence(entry, true);
 }
 
 function onClientSessionClosed(session) {
@@ -131,7 +196,7 @@ function onClientSessionClosed(session) {
 				delete activeUsers[key];
 			}
 		}
-		notifyPresence(entry);
+		notifyPresence(entry, true);
 	}
 }
 

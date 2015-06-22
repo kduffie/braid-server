@@ -93,6 +93,10 @@ Session.prototype.onSocketMessageReceived = function(msg) {
 		this.sendErrorResponseIfAppropriate(message, "Invalid message.  Missing type.", 400, true);
 		return;
 	}
+	if (!message.request) {
+		this.sendErrorResponseIfAppropriate(message, "Invalid message.  Missing request.", 400, true);
+		return;
+	}
 	if (message.to) {
 		if (!Array.isArray(message.to)) {
 			message.to = [ message.to ];

@@ -8,6 +8,7 @@ var domainNameServer = require('./braid-name-service');
 var WebSocket = require('ws');
 
 var config;
+var presenceHandlerAddress;
 
 var pendingTransmitQueuesByDomain = {};
 var sessionsById = {};
@@ -98,6 +99,10 @@ FederationSession.prototype.onSocketMessageReceived = function(msg) {
 		this.sendErrorResponseIfAppropriate(message, "Invalid message.  Missing type.", 400, true);
 		return;
 	}
+	if (!message.request) {
+		this.sendErrorResponseIfAppropriate(message, "Invalid message.  Missing request.", 400, true);
+		return;
+	}
 	if (message.to) {
 		if (!Array.isArray(message.to)) {
 			message.to = [ message.to ];
@@ -157,6 +162,12 @@ FederationSession.prototype.onSocketMessageReceived = function(msg) {
 						return;
 					}
 					break;
+				case 'cast':
+					switch (message.request) {
+					case 'presence':
+						message.to = [ this.presenceHandlerAddress ];
+						break;
+					}
 				}
 				messageSwitch.deliver(message);
 				break;
@@ -432,6 +443,7 @@ function initialize(cfg) {
 	console.log("federation: initializing");
 
 	config = cfg;
+	presenceHandlerAddress = new BraidAddress(null, config.domain, "!roster");
 	messageSwitch.registerForeignDomains(config.domain, function(message) {
 		handleSwitchedMessage(message);
 	});

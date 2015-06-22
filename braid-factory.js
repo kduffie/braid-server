@@ -464,11 +464,10 @@ BraidFactory.prototype.newFileRecord = function(tileId, fileName, fileId) {
 	};
 };
 
-BraidFactory.prototype.newPresenceEntry = function(address, online, capabilities) {
+BraidFactory.prototype.newPresenceEntry = function(address, online) {
 	return {
 		address : address,
-		online : online,
-		capabilities : capabilities
+		online : online
 	};
 };
 
