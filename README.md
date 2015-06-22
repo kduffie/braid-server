@@ -7,17 +7,15 @@ Braid is a cross-platform solution for collaboration in a new way -- based on th
 - You should have a lot of choice over the sharing components -- even inventing your own.
 
 This project is an open-source implementation of a server that implements the Braid protocol.  This
-implementation is built on node.js and its only mandatory external dependency is MongoDB.  (There are
-additional optional dependencies when other kinds of integrations are desired, such as LDAP for
-authentication, etc.)
+implementation is built on node.js and its only mandatory external dependency is MongoDB.
 
 ## Installation
 
 To run a braid server, you will need the following prerequisites:
 
-- MongoDB:  You need to be running an instance of mongo.  See http://docs.mongodb.org/manual/installation This can run on the same machine as the Braid server, or on a different machine.  If you do a standard Mongo installation on the same machine, then the default mongoUrl in the Braid's configuration file should work fine.
-- node.js:  Braid is written entirely in javascript and run using node.js.  You need to have node installed.  See https://nodejs.org/download/
-- npm:  Braid depends on various node.js libraries that are not included in this repository.  npm is installed as part of node.js.  For more information, see http://blog.npmjs.org/post/85484771375/how-to-install-npm
+- MongoDB:  You need to be run [an instance of MongoDB](http://docs.mongodb.org/manual/installation)
+- node.js:  Braid is written entirely in javascript and run using node.js.  You need to have [node](https://nodejs.org/download/) installed.
+- npm:  Braid depends on various node.js libraries that are not included in this repository.  npm is installed as part of node.js.
 
 Once you have the prerequisites in place, follow these steps:
 
@@ -25,25 +23,32 @@ Once you have the prerequisites in place, follow these steps:
 
 2. Install braid-server:  
 
-     `npm install braid-server -g`
+```bash
+$ npm install braid-server -g
+```
 
 4. Run braid-server:  
 
-     `node braid-server -d <domain>`
+```bash
+$ node braid-server -d <domain>
+```
 
-If you want more control over the configuration, you can copy config.json from the braid-server
+Alternatively, if you want more control over the configuration, you can copy config.json from the braid-server
 installation, make changes, and then start braid-server using: 
 
-     `node braid-server -c <path-to-config-file>`
+```bash
+$ node braid-server -c <path-to-config-file>
+```
 
 ## Status
 
-The server is still under development.  At this point, the server supports only the basics:
+The server is still under development.  At this point, the server supports:
 
 - *Accounts*:  registration and authentication of accounts within a domain
 - *Subscriptions*:  a user can subscribe someone else to their presence
 - *Presence*:  subscribers are notified when sessions start and end for one of the people they are subscribed to
 - *Message delivery*:  clients can send braid-compatible messages to each other, using unicast or multicast
+- *Federation*:  braid servers for different domains can talk to each other and exchange messages between their clients
 
 There is a lot more to come.  Stay tuned.
 
@@ -52,6 +57,8 @@ There is a lot more to come.  Stay tuned.
 When running, the server also provides a simple web server.  By default, braid-server uses port
 25555.  Point a browser to
 
-    `http://localhost:25555`
+```bash
+http://localhost:25555
+```
     
 You'll see that you can use a simple test client that will let you emulate a client to do some simple operations.
