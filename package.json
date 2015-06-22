@@ -1,6 +1,6 @@
 {
   "name": "braid.server",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "A federated server for interconnecting braid-compatible clients",
   "main": "braid-server.js",
   "scripts": {
