@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /**
  * This is the main entry point for the braid server.
  * 
