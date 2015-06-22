@@ -1,12 +1,12 @@
 {
   "name": "braid-server",
   "version": "0.2.10",
-  "description": "A federated server for interconnecting braid-compatible clients",
+  "description": "A federated server for interconnecting collaboration apps",
+  "bin": {"braid-server" : "./braid-server.js"},
   "main": "braid-server.js",
   "scripts": {
     "test": "mocha"
   },
-  "bin": "./braid-server" 
   "author": "HivePoint, Inc.",
   "license": "MIT",
   "dependencies": {
