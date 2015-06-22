@@ -100,10 +100,11 @@ function handleRosterMessage(message) {
 			async.each(records, function(record, callback) {
 				var address = newAddress(record.target);
 				var activeUser = activeUsers[address.asString()];
-				var resources = [ BOT_RESOURCE ];
+				var resources = [];
 				if (activeUser) {
 					resources = activeUser.resources;
 				}
+				resources.push(BOT_RESOURCE);
 				var entry = factory.newRosterEntry(new BraidAddress(record.target.userId, record.target.domain), resources);
 				entries.push(entry);
 				callback();
