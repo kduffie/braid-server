@@ -53,10 +53,13 @@
 		    if (connected) {
 				callback();
 			} else if (connecting) {
-		    	setTimeout(connect(callback), 250);
+			    callback("Still connecting");
 			} else {
 			    connecting = true;
-				braidClient.connect(callback);
+				braidClient.connect(function(err) {
+				   connecting = false;
+				   callback(err);
+				});
 				braidClient.onImReceived(function(message) {
 					var newItem = document.createElement("div");
 					newItem.setAttribute('class', 'fromThem');
@@ -72,25 +75,32 @@
 		}
 		
 		function onHelloClick() {
-			connect(function() {
-				braidClient.sendHello(factory.newHelloPayload('html-test-client', '0.2.0'), function(err, reply) {
-					getElement('msgHello').innerText = JSON.stringify(reply.data);
-				});
+			connect(function(err) {
+			    if (err) {
+			    	alert(err);
+			    } else {			    
+					braidClient.sendHello(factory.newHelloPayload('html-test-client', '0.2.0'), function(err, reply) {
+						getElement('msgHello').innerText = JSON.stringify(reply.data);
+					});
+				}
 			});
 		}
 
 		function onSignInClick() {
-			connect(function() {
-				if (getElement('register').checked) {
-					braidClient.register(getElement('userid').value, getElement('password').value, onActivated);
-				} else {
-					braidClient.authenticate(getElement('userid').value, getElement('password').value, onActivated);
+			connect(function(err) {
+			    if (err) {
+			    	alert(err);
+			    } else {			    
+					if (getElement('register').checked) {
+						braidClient.register(getElement('userid').value, getElement('password').value, onActivated);
+					} else {
+						braidClient.authenticate(getElement('userid').value, getElement('password').value, onActivated);
+					}
 				}
 			});
 		}
 		
 		function onActivated(err, reply) {
-		    connecting = false;
 			if (err) {
 				alert(err);
 			} else {
