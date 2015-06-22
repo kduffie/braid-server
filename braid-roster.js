@@ -14,6 +14,8 @@ var config;
 var braidDb;
 var address;
 
+var BOT_RESOURCE = '!bot';
+
 var activeUsers = {};
 
 function handleSubscribeMessage(message) {
@@ -98,7 +100,7 @@ function handleRosterMessage(message) {
 			async.each(records, function(record, callback) {
 				var address = newAddress(record.target);
 				var activeUser = activeUsers[address.asString()];
-				var resources = [];
+				var resources = [ BOT_RESOURCE ];
 				if (activeUser) {
 					resources = activeUser.resources;
 				}
