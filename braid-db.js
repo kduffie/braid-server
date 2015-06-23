@@ -1,9 +1,12 @@
 var MongoClient = require('mongodb').MongoClient;
 var async = require('async');
 
-var config;
-
 function BraidDb() {
+}
+
+BraidDb.prototype.initialize = function(configuration, callback) {
+	console.log("db: initializing");
+	config = configuration;
 	this.mongoUrl = config.mongo.mongoUrl;
 	this.options = config.mongo.options;
 	this.accounts = null;
@@ -21,9 +24,10 @@ function BraidDb() {
 		created : 1,
 		originator : 1
 	};
+	this._open(callback);
 }
 
-BraidDb.prototype.open = function(callback) {
+BraidDb.prototype._open = function(callback) {
 	var steps = [];
 	steps.push(function(callback) {
 		MongoClient.connect(this.mongoUrl, callback);
@@ -41,12 +45,12 @@ BraidDb.prototype.open = function(callback) {
 							callback(err);
 						}
 						this.db = reopenedDb;
-						this.setup(callback);
+						this._setup(callback);
 					}.bind(this));
 				}
 			}.bind(this));
 		} else {
-			this.setup(callback);
+			this._setup(callback);
 		}
 	}.bind(this));
 
@@ -57,15 +61,15 @@ BraidDb.prototype.close = function(callback) {
 	this.db.close(false, callback);
 };
 
-BraidDb.prototype.setup = function(callback) {
+BraidDb.prototype._setup = function(callback) {
 	async.parallel([
-					this.setupAccounts.bind(this),
-					this.setupSubscriptions.bind(this),
-					this.setupTiles.bind(this),
-					this.setupUserTiles.bind(this),
-					this.setupMutations.bind(this),
-					this.setupFiles.bind(this),
-					this.setupTileProperties.bind(this) ], function(err) {
+					this._setupAccounts.bind(this),
+					this._setupSubscriptions.bind(this),
+					this._setupTiles.bind(this),
+					this._setupUserTiles.bind(this),
+					this._setupMutations.bind(this),
+					this._setupFiles.bind(this),
+					this._setupTileProperties.bind(this) ], function(err) {
 		if (err) {
 			callback(err);
 		} else {
@@ -74,7 +78,7 @@ BraidDb.prototype.setup = function(callback) {
 	}.bind(this));
 };
 
-BraidDb.prototype.setupAccounts = function(callback) {
+BraidDb.prototype._setupAccounts = function(callback) {
 	this.accounts = this.db.collection("accounts");
 	this.accounts.ensureIndex({
 		userId : 1
@@ -84,7 +88,7 @@ BraidDb.prototype.setupAccounts = function(callback) {
 	}, callback);
 };
 
-BraidDb.prototype.setupSubscriptions = function(callback) {
+BraidDb.prototype._setupSubscriptions = function(callback) {
 	this.subscriptions = this.db.collection("subscriptions");
 	var steps = [];
 	steps.push(function(callback) {
@@ -107,7 +111,7 @@ BraidDb.prototype.setupSubscriptions = function(callback) {
 	async.parallel(steps, callback);
 };
 
-BraidDb.prototype.setupTiles = function(callback) {
+BraidDb.prototype._setupTiles = function(callback) {
 	this.tiles = this.db.collection("tiles");
 	this.tiles.ensureIndex({
 		tileId : 1
@@ -117,7 +121,7 @@ BraidDb.prototype.setupTiles = function(callback) {
 	}, callback);
 };
 
-BraidDb.prototype.setupUserTiles = function(callback) {
+BraidDb.prototype._setupUserTiles = function(callback) {
 	this.userTiles = this.db.collection("user-tiles");
 	this.userTiles.ensureIndex({
 		userId : 1,
@@ -128,7 +132,7 @@ BraidDb.prototype.setupUserTiles = function(callback) {
 	}, callback);
 };
 
-BraidDb.prototype.setupMutations = function(callback) {
+BraidDb.prototype._setupMutations = function(callback) {
 	this.mutations = this.db.collection("mutations");
 	var steps = [];
 	steps.push(function(callback) {
@@ -176,7 +180,7 @@ BraidDb.prototype.setupMutations = function(callback) {
 	async.parallel(steps, callback);
 };
 
-BraidDb.prototype.setupFiles = function(callback) {
+BraidDb.prototype._setupFiles = function(callback) {
 	this.files = this.db.collection("files");
 	this.files.ensureIndex({
 		fileId : 1
@@ -186,7 +190,7 @@ BraidDb.prototype.setupFiles = function(callback) {
 	}, callback);
 };
 
-BraidDb.prototype.setupTileProperties = function(callback) {
+BraidDb.prototype._setupTileProperties = function(callback) {
 	this.tileProperties = this.db.collection("tile-properties");
 	this.tileProperties.ensureIndex({
 		tileId : 1,
@@ -443,16 +447,4 @@ BraidDb.prototype.deleteTileProperty = function(tileId, name, callback) {
 	}, callback);
 };
 
-var braidDb;
-
-function initialize(configuration, callback) {
-	console.log("db: initializing");
-	config = configuration;
-	braidDb = new BraidDb();
-	braidDb.open(callback);
-}
-
-module.exports = {
-	initialize : initialize,
-	braidDb : braidDb
-};
+module.exports = BraidDb;

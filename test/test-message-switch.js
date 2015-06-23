@@ -1,5 +1,5 @@
 var assert = require('assert');
-var messageSwitch = require('../braid-message-switch');
+var MessageSwitch = require('../braid-message-switch');
 
 var rx = [];
 
@@ -9,7 +9,8 @@ function handler(message) {
 
 describe('message-switch:', function() {
 	it('check resource switching', function(done) {
-		messageSwitch.reset();
+		var messageSwitch = new MessageSwitch();
+		messageSwitch.initialize();
 		var address1 = {
 			domain : 'test.com',
 			userId : 'joe',

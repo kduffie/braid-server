@@ -13,6 +13,10 @@ var fs = require('fs');
 var express = require('express');
 var path = require('path');
 var cliArgs = require("command-line-args");
+var BraidDb = require('./braid-db');
+var EventBus = require('./braid-event-bus');
+var MessageSwitch = require('./braid-message-switch');
+var AuthServer = require('./braid-auth').AuthServer;
 
 var WebSocketServer = require('ws').Server;
 var http = require('http');
@@ -128,15 +132,27 @@ function start() {
 			roster : require('./braid-roster').federationCapabilities,
 			federation : require('./braid-federation').federationCapabilities
 		};
-		require('./braid-db').initialize(config, function(err, braidDb) {
-			if (err || !braidDb) {
+		var braidDb = new BraidDb();
+		braidDb.initialize(config, function(err) {
+			if (err) {
 				console.log("Error opening mongo.  Are you running mongo?");
 				throw "Mongo error: " + err;
 			}
-			require('./braid-auth').initialize(config, braidDb);
+			var services = {
+				factory: require('./braid-factory'),
+				braidDb: braidDb,
+				eventBus: new EventBus(),
+				messageSwitch: new MessageSwitch(),
+				authServer: new AuthServer()
+			};
+			services.eventBus.initialize(config, services);
+			services.messageSwitch.initialize(config, services);
+			services.authServer.initialize(config, services);
+			
 			require('./braid-roster').initialize(config, braidDb);
 			require('./braid-clients').initialize(config);
 			require('./braid-federation').initialize(config);
+			// require('./braid-bot').initialize(config, braidDb);
 			startServer();
 		});
 	});
