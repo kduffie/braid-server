@@ -21,6 +21,8 @@
 			padding: 5px;
 			margin: 15px 0;
 			min-height: 15px;
+			max-height: 200px;
+			overflow-y: scroll;
 		}
 		.fromMe {
 			color: #aaa;
@@ -41,7 +43,7 @@
 	</style>
 	<script src='braid-address.js'></script>
 	<script src='braid-factory.js'></script>
-	<script src='braid-client-web.js'></script>
+	<script src='braid-client.js'></script>
 	<script>
 		var getLocation = function(href) {
     		var l = document.createElement("a");
@@ -76,6 +78,9 @@
     				var panel = document.getElementById("messagePanel");
     				panel.appendChild(newItem);
     				getElement('recipient').value = message.from.userId + "@" + message.from.domain + "/" + message.from.resource;
+    				setTimeout(function() {
+    					getElement('messagePanel').scrollTop = getElement('messagePanel').scrollHeight;
+    				}, 1);
 				});
 			}
 		}
@@ -157,6 +162,13 @@
 			});
 		}
 		
+		function onMessageKeyPress(event) {
+			if (event.keyCode === 13) {
+				event.preventDefault();
+				onSendImClick();
+			}
+		}
+		
 		function onSendImClick() {
 			var newItem = document.createElement("div");
 			newItem.setAttribute('class', 'fromMe');
@@ -166,8 +178,11 @@
     		panel.appendChild(newItem);
 		
 			braidClient.sendTextMessage(getElement('recipient').value, getElement('message').value);
-			getElement('message').value = '';
 			getElement('message').focus();
+			getElement('message').value = '';
+			setTimeout(function() {
+    			getElement('messagePanel').scrollTop = getElement('messagePanel').scrollHeight;
+    		}, 1);
 		}
 	</script>
 </head>
@@ -201,11 +216,11 @@
 		<section>
 			<h3>Instant Messages</h3>
 			<input id='recipient' type='text' placeholder='recipient' class='wideBox'/>
-			<input id='message' type='text' placeholder='enter text message for recipient' class='wideBox'/>
-			<button onclick='onSendImClick()'>send</button>
 			<div id='messagePanel'>
 				<div id='lastMessage'></div>
 			</div>
+			<input id='message' type='text' placeholder='enter text message for recipient' class='wideBox' onkeypress='onMessageKeyPress(event)'/>
+			<button onclick='onSendImClick()'>send</button>
 		</section>
 	</div>
 	<script>

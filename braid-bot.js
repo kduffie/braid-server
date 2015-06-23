@@ -1,32 +1,36 @@
-var factory = require('./braid-factory');
-var config;
-var messageSwitch = require('./braid-message-switch');
 var BraidAddress = require('./braid-address').BraidAddress;
-var getUserRecord = require('./braid-auth').getUserRecord;
 var TileMutationProcessor = require('./braid-tile-mutation-processor');
 var TileMutationMongoHandler = require('./braid-tile-mutation-mongo-handler');
-
-var braidDb;
 var BOT_RESOURCE = '!bot';
 
-var handler;
+function BotManager() {
 
-var mutationProcessorsByTileId = {};
-
-function sendMessage(message) {
-	messageSwitch.deliver(message);
 }
 
-function createProxyAddress(userId) {
-	return new BraidAddress(userId, config.domain, BOT_RESOURCE);
-}
+BotManager.prototype.initialize = function(config, services) {
+	console.log("braid-client-bot: initializing");
+	this.config = config;
+	this.factory = services.factory;
+	this.messageSwitch = services.messageSwitch;
+	this.authServer = services.authServer;
+	this.braidDb = services.braidDb;
+	this.messageSwitch.registerHook(this.messageHandler.bind(this));
+	this.mutationProcessorsByTileId = {};
+	mutationHandler = new TileMutationMongoHandler({
+		onFileMissing : handleOnFileMissing,
+		onMutationsCompleted : handleOnMutationsCompleted,
+	}, this.braidDb);
+};
 
-function handlePing(message, to) {
-	var reply = factory.newReply(message, createProxyAddress(to.userId));
-	sendMessage(reply);
-}
+BotManager.prototype.sendMessage = function(message) {
+	this.messageSwitch.deliver(message);
+};
 
-function handleTileShare(message) {
+BotManager.prototype.createProxyAddress = function(userId) {
+	return new BraidAddress(userId, this.config.domain, BOT_RESOURCE);
+};
+
+BotManager.prototype.handleTileShare = function(message) {
 	// When we get a tile-share, it is either from our own user, or from
 	// someone else. If the former, we'll accept the tile unless we already
 	// have it. If the latter, we'll ignore it, and will eventually add it
@@ -59,14 +63,14 @@ function handleTileShare(message) {
 	}
 
 	if (message.data && message.data.tileId) {
-		braidDb.findTileById(message.data.tileId, function(err, tileRecord) {
+		this.braidDb.findTileById(message.data.tileId, function(err, tileRecord) {
 			if (err) {
 				console.error("Failure finding tile in db", err);
 			} else if (!record) {
 				// We don't yet have this tile. So we'll save the tile and
 				// issue a tile-accept to get them to send us the mutations for it.
 				var record = factory.newTileRecordFromInfo(message.data);
-				braidDb.insertUserTile(record, function(err) {
+				this.braidDb.insertUserTile(record, function(err) {
 					if (err) {
 						console.error("Failure inserting tile", err);
 					} else {
@@ -77,9 +81,9 @@ function handleTileShare(message) {
 			}
 		});
 	}
-}
+};
 
-function processMutation(tileRecord, mutation) {
+BotManager.prototype.processMutation = function(tileRecord, mutation) {
 	process.nextTick(function() {
 		// Find or create a tile mutation processor for the tile
 		var mp = mutationProcessorsByTileId[mutation.tileId];
@@ -89,21 +93,21 @@ function processMutation(tileRecord, mutation) {
 		}
 		mp.addMutation(mutation);
 	});
-}
+};
 
-function handleTileMutation(message, to) {
+fBotManager.prototype.handleTileMutation = function(message, to) {
 	// If we receive a tile mutation, we will process it, but only if it is
 	// for a tile that we have. In that case, we don't care who they were
 	// sending it to.
 
 	if (message.data && message.data.tileId) {
-		braidDb.findTileById(message.data.tileId, function(err, tileRecord) {
+		this.braidDb.findTileById(message.data.tileId, function(err, tileRecord) {
 			if (err) {
 				console.error("Failure finding tile in db", err);
 			} else if (tileRecord) {
 				// Now we check to see if we already have this mutation and it
 				// has been processed.
-				braidDb.findMutation(message.data.tileId, message.data.mutationId, function(err, mutationRecord) {
+				this.braidDb.findMutation(message.data.tileId, message.data.mutationId, function(err, mutationRecord) {
 					if (err) {
 						console.err("Failure finding mutation", err);
 					} else if (!record || !record.integrated) {
@@ -114,11 +118,15 @@ function handleTileMutation(message, to) {
 			}
 		});
 	}
+};
 
-}
+BotManager.prototype.handlePing = function(message, to) {
+	var reply = this.factory.newReply(message, this.createProxyAddress(to.userId));
+	this.sendMessage(reply);
+};
 
-function handleMessage(message, to, isDirected) {
-	getUserRecord(to.userId, function(err, userRecord) {
+BotManager.prototype.handleMessage = function(message, to, isDirected) {
+	this.authServer.getUserRecord(to.userId, function(err, userRecord) {
 		if (err) {
 			console.warn("braid-client-bot: error getting user record", err);
 		} else if (userRecord) {
@@ -126,7 +134,7 @@ function handleMessage(message, to, isDirected) {
 			case 'request':
 				switch (message.request) {
 				case 'ping':
-					handlePing(message, to);
+					this.handlePing(message, to);
 					break;
 				}
 				break;
@@ -148,10 +156,10 @@ function handleMessage(message, to, isDirected) {
 		} else {
 			console.warn("braid-client-bot: ignoring message sent to non-existent user: " + to.userId);
 		}
-	});
-}
+	}.bind(this));
+};
 
-function messageHandler(message) {
+BotManager.prototype.messageHandler = function(message) {
 	// We're seeing every message going through the switch. We need to efficiently select those
 	// that we need to process
 
@@ -165,15 +173,15 @@ function messageHandler(message) {
 	}
 
 	// Don't want to process messages I have sent
-	if (message.from.domain === config.domain && message.from.resource === BOT_RESOURCE) {
+	if (message.from.domain === this.config.domain && message.from.resource === BOT_RESOURCE) {
 		return;
 	}
 
 	// If the message is specifically to my resource on behalf of any user, I'll handle it
 	for (var i = 0; i < message.to.length; i++) {
 		var to = message.to[i];
-		if (to.userId && to.resource === BOT_RESOURCE && to.domain === config.domain) {
-			handleMessage(message, to, true);
+		if (to.userId && to.resource === BOT_RESOURCE && to.domain === this.config.domain) {
+			this.handleMessage(message, to, true);
 			return;
 		}
 	}
@@ -181,33 +189,21 @@ function messageHandler(message) {
 	// If the message is sent to a user in my domain, but without a resource, then I'll act as an active session
 	for (var i = 0; i < message.to.length; i++) {
 		var to = message.to[i];
-		if (to.userId && !to.resource && to.domain === config.domain) {
-			handleMessage(message, to, false);
+		if (to.userId && !to.resource && to.domain === this.config.domain) {
+			this.handleMessage(message, to, false);
 			return;
 		}
 	}
+};
 
-}
-
-function handleOnFileMissing(tileId, mutation) {
+BotManager.prototype.handleOnFileMissing = function(tileId, mutation) {
 	// TODO: request file from originator
-}
+};
 
-function handleOnMutationsCompleted(tileId) {
-	delete mutationProcessorsByTileId[tileId];
-}
+BotManager.prototype.handleOnMutationsCompleted = function(tileId) {
+	delete this.mutationProcessorsByTileId[tileId];
+};
 
-function initialize(configuration, db) {
-	console.log("braid-client-bot: initializing");
-	config = configuration;
-	braidDb = db;
-	messageSwitch.registerHook(messageHandler);
-	mutationHandler = new TileMutationMongoHandler({
-		onFileMissing : handleOnFileMissing,
-		onMutationsCompleted : handleOnMutationsCompleted,
-	}, braidDb);
-
-}
 module.exports = {
-	initialize : initialize
+	BotManager : BotManager
 };

@@ -4,32 +4,18 @@
 
 var async = require('async');
 
-var resourceRegistrations = {};
-var userRegistrations = {};
-var requestRegistrations = {};
-var foreignDomainRegistrations = [];
-var messageHooks = [];
-
 var id = 1;
 
-var stats = {
-	registrations : {
-		user : 0,
-		resource : 0,
-		request : 0
-	},
-	messages : {
-		received : 0,
-		delivered : 0,
-		hooked : 0,
-	}
-};
+function MessageSwitch() {
+}
 
-function reset() {
-	userRegistrations = {};
-	requestRegistrations = {};
-	resourceRegistrations = {};
-	stats = {
+MessageSwitch.prototype.initialize = function() {
+	this.resourceRegistrations = {};
+	this.userRegistrations = {};
+	this.requestRegistrations = {};
+	this.foreignDomainRegistrations = [];
+	this.messageHooks = [];
+	this.stats = {
 		registrations : {
 			user : 0,
 			resource : 0,
@@ -41,11 +27,11 @@ function reset() {
 			hooked : 0,
 		}
 	};
-}
+};
 
-function registerResource(resource, domain, messageHandler) {
-	stats.registrations.resource++;
-	var list = resourceRegistrations[resource];
+MessageSwitch.prototype.registerResource = function(resource, domain, messageHandler) {
+	this.stats.registrations.resource++;
+	var list = this.resourceRegistrations[resource];
 	if (!list) {
 		list = {
 			data : {
@@ -53,7 +39,7 @@ function registerResource(resource, domain, messageHandler) {
 				domain : domain
 			}
 		};
-		resourceRegistrations[resource] = list;
+		this.resourceRegistrations[resource] = list;
 	}
 	var resourceId = "c" + id++;
 	list[resourceId] = messageHandler;
@@ -63,23 +49,23 @@ function registerResource(resource, domain, messageHandler) {
 		resource : resource,
 		id : resourceId
 	};
-}
+};
 
-function getUserKey(userId, domain) {
+MessageSwitch.prototype._getUserKey = function(userId, domain) {
 	return domain + "/" + userId;
-}
+};
 
-function registerUser(userId, domain, messageHandler) {
-	stats.registrations.user++;
-	var key = getUserKey(userId, domain);
-	var list = userRegistrations[key];
+MessageSwitch.prototype.registerUser = function(userId, domain, messageHandler) {
+	this.stats.registrations.user++;
+	var key = this._getUserKey(userId, domain);
+	var list = this.userRegistrations[key];
 	if (!list) {
 		list = {
 			data : {
 				count : 0
 			}
 		};
-		userRegistrations[key] = list;
+		this.userRegistrations[key] = list;
 	}
 	var sessionId = "u" + id++;
 	list[sessionId] = messageHandler;
@@ -89,18 +75,18 @@ function registerUser(userId, domain, messageHandler) {
 		key : key,
 		id : sessionId
 	};
-}
+};
 
-function registerForRequests(requestType, messageHandler) {
-	stats.registrations.request++;
-	var list = requestRegistrations[requestType];
+MessageSwitch.prototype.registerForRequests = function(requestType, messageHandler) {
+	this.stats.registrations.request++;
+	var list = this.requestRegistrations[requestType];
 	if (!list) {
 		list = {
 			data : {
 				count : 0
 			}
 		};
-		requestRegistrations[requestType] = list;
+		this.requestRegistrations[requestType] = list;
 	}
 	var requestId = "r" + id++;
 	list[requestId] = messageHandler;
@@ -110,59 +96,59 @@ function registerForRequests(requestType, messageHandler) {
 		requestType : requestType,
 		id : requestId
 	};
-}
+};
 
-function registerForeignDomains(localDomain, messageHandler) {
-	foreignDomainRegistrations.push({
+MessageSwitch.prototype.registerForeignDomains = function(localDomain, messageHandler) {
+	this.foreignDomainRegistrations.push({
 		localDomain : localDomain,
 		handler : messageHandler
 	});
-}
+};
 
-function unregister(registration) {
+MessageSwitch.prototype.unregister = function(registration) {
 	switch (registration.type) {
 	case 'user': {
-		var slist = userRegistrations[registration.key];
+		var slist = this.userRegistrations[registration.key];
 		if (slist) {
-			stats.registrations.user--;
+			this.stats.registrations.user--;
 			delete slist[registration.id];
 			slist.data.count--;
 			if (slist.data.count === 0) {
-				delete userRegistrations[registration.key];
+				delete this.userRegistrations[registration.key];
 			}
 		}
 		break;
 	}
 	case 'resource': {
-		var clist = resourceRegistrations[registration.resource];
+		var clist = this.resourceRegistrations[registration.resource];
 		if (clist) {
-			stats.registrations.resource--;
+			this.stats.registrations.resource--;
 			delete clist[registration.id];
 			clist.data.count--;
 			if (clist.data.count === 0) {
-				delete resourceRegistrations[registration.resource];
+				delete this.resourceRegistrations[registration.resource];
 			}
 		}
 		break;
 	}
 	case 'request': {
-		var rlist = requestRegistrations[registration.requestType];
+		var rlist = this.requestRegistrations[registration.requestType];
 		if (rlist) {
-			stats.registrations.request--;
+			this.stats.registrations.request--;
 			delete rlist[registration.id];
 			rlist.data.count--;
 			if (rlist.data.count === 0) {
-				delete requestRegistrations[registration.requestType];
+				delete this.requestRegistrations[registration.requestType];
 			}
 		}
 		break;
 	}
 	}
-}
+};
 
-function deliver(message, callback) {
+MessageSwitch.prototype.deliver = function(message, callback) {
 	console.log("X ", message);
-	stats.messages.received++;
+	this.stats.messages.received++;
 	var tasks = [];
 	tasks.push(function(callback) {
 		if (message.to) {
@@ -173,8 +159,8 @@ function deliver(message, callback) {
 			for (var i = 0; i < message.to.length; i++) {
 				var recipient = message.to[i];
 				if (recipient.userId && recipient.domain) {
-					var key = getUserKey(recipient.userId, recipient.domain);
-					var list = userRegistrations[key];
+					var key = this._getUserKey(recipient.userId, recipient.domain);
+					var list = this.userRegistrations[key];
 					if (list) {
 						for ( var item in list) {
 							if (list.hasOwnProperty(item) && item !== 'data') {
@@ -189,13 +175,13 @@ function deliver(message, callback) {
 			}
 			async.each(handlers, function(handler, callback) {
 				handler(message);
-				stats.messages.delivered++;
+				this.stats.messages.delivered++;
 				callback();
-			}, callback);
+			}.bind(this), callback);
 		} else {
 			callback();
 		}
-	});
+	}.bind(this));
 	tasks.push(function(callback) {
 		if (message.to) {
 			if (!Array.isArray(message.to)) {
@@ -205,7 +191,7 @@ function deliver(message, callback) {
 			for (var i = 0; i < message.to.length; i++) {
 				var recipient = message.to[i];
 				if (recipient.resource) {
-					var list = resourceRegistrations[recipient.resource];
+					var list = this.resourceRegistrations[recipient.resource];
 					if (list) {
 						if (!list.data.domain || list.data.domain === recipient.domain) {
 							for ( var item in list) {
@@ -222,16 +208,16 @@ function deliver(message, callback) {
 			}
 			async.each(handlers, function(handler, callback) {
 				handler(message);
-				stats.messages.delivered++;
+				this.stats.messages.delivered++;
 				callback();
-			}, callback);
+			}.bind(this), callback);
 		} else {
 			callback();
 		}
-	});
+	}.bind(this));
 	tasks.push(function(callback) {
 		if (message.request) {
-			var rlist = requestRegistrations[message.request];
+			var rlist = this.requestRegistrations[message.request];
 			var rhandlers = [];
 			if (rlist) {
 				for ( var ritem in rlist) {
@@ -245,19 +231,19 @@ function deliver(message, callback) {
 			}
 			async.each(rhandlers, function(rhandler, callback) {
 				rhandler(message);
-				stats.messages.delivered++;
+				this.stats.messages.delivered++;
 				callback();
-			});
+			}.bind(this), callback);
 		} else {
 			callback();
 		}
-	});
+	}.bind(this));
 	tasks.push(function(callback) {
 		if (message.to) {
 			var fhandlers = [];
 			var ldomains = [];
-			for (var i = 0; i < foreignDomainRegistrations.length; i++) {
-				var fdr = foreignDomainRegistrations[i];
+			for (var i = 0; i < this.foreignDomainRegistrations.length; i++) {
+				var fdr = this.foreignDomainRegistrations[i];
 				for (var j = 0; j < message.to.length; j++) {
 					if (message.to[j] && message.to[j].domain && fdr.localDomain !== message.to[j].domain) {
 						if (ldomains.indexOf(fdr.localDomain) < 0) {
@@ -269,39 +255,29 @@ function deliver(message, callback) {
 			}
 			async.each(fhandlers, function(fhandler, callback) {
 				fhandler(message);
-				stats.messages.delivered++;
+				this.stats.messages.delivered++;
 				callback();
-			}, callback);
+			}.bind(this), callback);
 		} else {
 			callback();
 		}
-	});
+	}.bind(this));
 	tasks.push(function(callback) {
-		async.each(messageHooks, function(hook, callback) {
+		async.each(this.messageHooks, function(hook, callback) {
 			hook(message);
-			stats.messages.hooked++;
+			this.stats.messages.hooked++;
 			callback();
-		});
-	});
+		}.bind(this), callback);
+	}.bind(this));
 	async.parallel(tasks, callback);
-}
-
-function getStats() {
-	return stats;
-}
-
-function registerHook(handler) {
-	messageHooks.push(handler);
-}
-
-module.exports = {
-	reset : reset,
-	registerUser : registerUser,
-	registerResource : registerResource,
-	registerForRequests : registerForRequests,
-	registerForeignDomains : registerForeignDomains,
-	registerHook : registerHook,
-	unregister : unregister,
-	deliver : deliver,
-	getStats : getStats
 };
+
+MessageSwitch.prototype.getStats = function() {
+	return this.stats;
+}
+
+MessageSwitch.prototype.registerHook = function(handler) {
+	this.messageHooks.push(handler);
+};
+
+module.exports = MessageSwitch;

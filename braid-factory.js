@@ -61,6 +61,9 @@ BraidFactory.prototype.newErrorReply = function(requestMessage, code, errorMessa
 };
 
 BraidFactory.prototype.newHelloPayload = function(product, version, capabilities) {
+	if (!capabilities) {
+		capabilities = {};
+	}
 	return {
 		product : product,
 		version : version,

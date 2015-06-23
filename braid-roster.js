@@ -4,67 +4,80 @@
  * offline.
  */
 
-var messageSwitch = require('./braid-message-switch');
-var eventBus = require('./braid-event-bus');
 var async = require('async');
-var factory = require('./braid-factory');
 var BraidAddress = require('./braid-address').BraidAddress;
 var newAddress = require('./braid-address').newAddress;
-var config;
-var braidDb;
-var address;
 
 var BOT_RESOURCE = '!bot';
 
-var activeUsers = {};
+function RosterManager() {
+}
 
-function handleSubscribeMessage(message) {
+RosterManager.prototype.initialize = function(configuration, services) {
+	this.config = configuration;
+	this.factory = services.factory;
+	this.braidDb = services.braidDb;
+	this.messageSwitch = services.messageSwitch;
+	this.eventBus = services.eventBus;
+	this.activeUsers = {};
+
+	this.rosterAddress = new BraidAddress(null, this.config.domain, "!roster");
+
+	this.messageSwitch.registerResource('!roster', this.config.domain, this._handleRosterMessage.bind(this));
+	this.messageSwitch.registerForRequests('subscribe', this._handleSubscribeMessage.bind(this));
+	this.messageSwitch.registerForRequests('unsubscribe', this._handleUnsubscribeMessage.bind(this));
+
+	this.eventBus.on('client-session-activated', this._onClientSessionActivated.bind(this));
+	this.eventBus.on('client-session-closed', this._onClientSessionClosed.bind(this));
+};
+
+RosterManager.prototype._handleSubscribeMessage = function(message) {
 	// Someone has sent a subscribe message. This means that they are making themselves a target so that the recipient
 	// will become a subscriber of their presence. If there isn't already a record for this subscription, we will add one.
 	async.eachSeries(message.to, function(recipient, callback) {
 		if (recipient.userId && recipient.domain) {
-			braidDb.findSubscription(message.from.userId, message.from.domain, recipient.userId, recipient.domain, function(err, record) {
+			this.braidDb.findSubscription(message.from.userId, message.from.domain, recipient.userId, recipient.domain, function(err, record) {
 				if (err) {
 					callback(err);
 				} else if (record) {
 					callback();
 				} else {
-					var subscription = factory.newSubscriptionRecord(message.from.userId, message.from.domain, recipient.userId, recipient.domain);
+					var subscription = this.factory.newSubscriptionRecord(message.from.userId, message.from.domain, recipient.userId, recipient.domain);
 					console.log("braid-roster: adding subscription", subscription);
-					braidDb.insertSubscription(subscription, callback);
+					this.braidDb.insertSubscription(subscription, callback);
 				}
-			});
+			}.bind(this));
 		}
-	});
-}
+	}.bind(this));
+};
 
-function handleUnsubscribeMessage(message) {
+RosterManager.prototype._handleUnsubscribeMessage = function(message) {
 	async.eachSeries(message.to, function(recipient, callback) {
 		if (recipient.userId && recipient.domain) {
-			braidDb.findSubscription(message.from.userId, message.from.domain, recipient.userId, recipient.domain, function(err, record) {
+			this.braidDb.findSubscription(message.from.userId, message.from.domain, recipient.userId, recipient.domain, function(err, record) {
 				if (err) {
 					callback(err);
 				} else if (record) {
-					var subscription = factory.newSubscriptionRecord(message.from.userId, message.from.domain, recipient.userId, recipient.domain);
+					var subscription = this.factory.newSubscriptionRecord(message.from.userId, message.from.domain, recipient.userId, recipient.domain);
 					console.log("braid-roster: adding subscription", subscription);
-					braidDb.removeSubscription(message.from.userId, message.from.domain, recipient.userId, recipient.domain, callback);
+					this.braidDb.removeSubscription(message.from.userId, message.from.domain, recipient.userId, recipient.domain, callback);
 				} else {
 					callback();
 				}
-			});
+			}.bind(this));
 		}
-	});
-}
+	}.bind(this));
+};
 
-function notifyPresence(presenceEntry, includeForeign) {
-	braidDb.findSubscribersByTarget(presenceEntry.address.userId, presenceEntry.address.domain, function(err, records) {
+RosterManager.prototype._notifyPresence = function(presenceEntry, includeForeign) {
+	this.braidDb.findSubscribersByTarget(presenceEntry.address.userId, presenceEntry.address.domain, function(err, records) {
 		if (err) {
 			throw err;
 		}
 		var localUsers = [];
 		var foreignDomains = [];
 		for (var i = 0; i < records.length; i++) {
-			if (records[i].subscriber.domain === config.domain) {
+			if (records[i].subscriber.domain === this.config.domain) {
 				localUsers.push(records[i].subscriber);
 			} else {
 				if (foreignDomains.indexOf(records[i].subscriber.domain) < 0) {
@@ -73,46 +86,41 @@ function notifyPresence(presenceEntry, includeForeign) {
 			}
 		}
 		async.each(localUsers, function(localUser, callback) {
-			var presenceMessage = factory.newPresenceMessage(presenceEntry, localUser, address);
-			messageSwitch.deliver(presenceMessage);
+			var presenceMessage = this.factory.newPresenceMessage(presenceEntry, localUser, this.rosterAddress);
+			this.messageSwitch.deliver(presenceMessage);
 			callback();
-		});
+		}.bind(this));
 		if (includeForeign) {
 			async.each(foreignDomains, function(foreignDomain, callback) {
-				var presenceMessage = factory.newPresenceMessage(presenceEntry, new BraidAddress(null, foreignDomain), address);
-				messageSwitch.deliver(presenceMessage);
+				var presenceMessage = this.factory.newPresenceMessage(presenceEntry, new BraidAddress(null, foreignDomain), this.rosterAddress);
+				this.messageSwitch.deliver(presenceMessage);
 				callback();
-			});
+			}.bind(this));
 		}
-	});
+	}.bind(this));
 }
 
-function handleRosterMessage(message) {
+RosterManager.prototype._handleRosterMessage = function(message) {
 	// Someone has sent a message to the roster manager.
 	switch (message.request) {
 	case 'roster':
 		// The user wants a list of the users they are subscribed to, and a list of active resources for each
-		braidDb.findTargetsBySubscriber(message.from.userId, message.from.domain, function(err, records) {
+		this.braidDb.findTargetsBySubscriber(message.from.userId, message.from.domain, function(err, records) {
 			if (err) {
 				throw err;
 			}
 			var entries = [];
 			async.each(records, function(record, callback) {
 				var address = newAddress(record.target);
-				var activeUser = activeUsers[address.asString()];
-				var resources = [];
-				if (activeUser) {
-					resources = activeUser.resources;
-				}
-				resources.push(BOT_RESOURCE);
-				var entry = factory.newRosterEntry(new BraidAddress(record.target.userId, record.target.domain), resources);
+				var activeUser = this.getActiveUser(address);
+				var entry = this.factory.newRosterEntry(new BraidAddress(record.target.userId, record.target.domain), activeUser.resources);
 				entries.push(entry);
 				callback();
-			}, function(err) {
-				var reply = factory.newRosterReply(message, entries, address);
-				messageSwitch.deliver(reply);
-			});
-		});
+			}.bind(this), function(err) {
+				var reply = this.factory.newRosterReply(message, entries, this.rosterAddress);
+				this.messageSwitch.deliver(reply);
+			}.bind(this));
+		}.bind(this));
 		break;
 	case 'presence':
 		// Presence messages from foreign domains will be directed here. We need to deliver these to the
@@ -132,89 +140,70 @@ function handleRosterMessage(message) {
 	default:
 		break;
 	}
-}
+};
 
-function onForeignClientSessionActivated(entry) {
+RosterManager.prototype.getActiveUser = function(address) {
+	var key = address.asString();
+	var activeUser = this.activeUsers[key];
+	if (!activeUser) {
+		activeUser = {
+			address : address,
+			resources : [ BOT_RESOURCE ]
+		};
+		this.activeUsers[key] = activeUser;
+	}
+	return activeUser;
+};
+
+RosterManager.prototype._onForeignClientSessionActivated = function(entry) {
 	var address = newAddress(entry.address);
 	console.log("braid-roster: onForeignClientSessionActivated", entry);
-	var key = address.asString();
-	var activeUser = activeUsers[key];
-	if (!activeUser) {
-		activeUser = {
-			address : address,
-			resources : []
-		};
-		activeUsers[key] = activeUser;
-	}
+	var activeUser = this.getActiveUser(address);
 	activeUser.resources.push(session.userAddress.resource);
-	notifyPresence(entry, false);
-}
+	this._notifyPresence(entry, false);
+};
 
-function onForeignClientSessionClosed(entry) {
+RosterManager.prototype._onForeignClientSessionClosed = function(entry) {
 	console.log("braid-roster: onForeignClientSessionClosed", entry);
 	var address = newAddress(address, true);
-	var key = address.asString();
-	var activeUser = activeUsers[key];
-	if (activeUser) {
-		var index = activeUser.resources.indexOf(address.resource);
-		if (index >= 0) {
-			activeUser.resources.splice(index, 1);
-		}
-		if (activeUser.resources.length === 0) {
-			delete activeUsers[key];
-		}
+	var activeUser = this.getActiveUser(address);
+	var index = activeUser.resources.indexOf(address.resource);
+	if (index >= 0) {
+		activeUser.resources.splice(index, 1);
 	}
-	notifyPresence(entry, false);
-}
+	if (activeUser.resources.length === 0) {
+		delete this.activeUsers[key];
+	}
+	this._notifyPresence(entry, false);
+};
 
-function onClientSessionActivated(session) {
+RosterManager.prototype._onClientSessionActivated = function(session) {
 	console.log("braid-roster: onClientSessionActivated", session.userAddress);
-	var entry = factory.newPresenceEntry(session.userAddress, true);
+	var entry = this.factory.newPresenceEntry(session.userAddress, true);
 	var address = newAddress(session.userAddress, true);
-	var key = address.asString();
-	var activeUser = activeUsers[key];
-	if (!activeUser) {
-		activeUser = {
-			address : address,
-			resources : []
-		};
-		activeUsers[key] = activeUser;
-	}
+	var activeUser = this.getActiveUser(address);
 	activeUser.resources.push(session.userAddress.resource);
-	notifyPresence(entry, true);
-}
+	this._notifyPresence(entry, true);
+};
 
-function onClientSessionClosed(session) {
+RosterManager.prototype._onClientSessionClosed = function(session) {
 	if (session.userAddress) {
-		var entry = factory.newPresenceEntry(session.userAddress, false);
+		var entry = this.factory.newPresenceEntry(session.userAddress, false);
 		var address = newAddress(session.userAddress, true);
 		var key = address.asString();
-		var activeUser = activeUsers[key];
+		var activeUser = this.activeUsers[key];
 		if (activeUser) {
 			var index = activeUser.resources.indexOf(session.userAddress.resource);
 			if (index >= 0) {
 				activeUser.resources.splice(index, 1);
 			}
 			if (activeUser.resources.length === 0) {
-				delete activeUsers[key];
+				delete this.activeUsers[key];
 			}
 		}
-		notifyPresence(entry, true);
+		this._notifyPresence(entry, true);
 	}
-}
-
-function initialize(configuration, db) {
-	config = configuration;
-	console.log("roster: initializing");
-	braidDb = db;
-	address = new BraidAddress(null, config.domain, "!roster");
-	messageSwitch.registerResource('!roster', config.domain, handleRosterMessage);
-	messageSwitch.registerForRequests('subscribe', handleSubscribeMessage);
-	messageSwitch.registerForRequests('unsubscribe', handleUnsubscribeMessage);
-	console.log("braid-roster: registering with eventBus");
-	eventBus.on('client-session-activated', onClientSessionActivated);
-	eventBus.on('client-session-closed', onClientSessionClosed);
-}
+};
 
 var clientCapabilities = {
 	v : 1,
@@ -242,5 +231,5 @@ var federationCapabilities = {
 module.exports = {
 	clientCapabilities : clientCapabilities,
 	federationCapabilities : federationCapabilities,
-	initialize : initialize
+	RosterManager : RosterManager
 };

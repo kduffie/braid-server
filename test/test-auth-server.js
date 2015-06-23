@@ -1,9 +1,5 @@
 var assert = require('assert');
-var messageSwitch = require('../braid-message-switch');
-var factory = require('../braid-factory');
-var braidDb;
-
-var MONGO_URL = "mongodb://localhost:27017/braidTest";
+var testUtil = require('./test-util');
 
 var portAddress = {
 	resource : '12345'
@@ -23,7 +19,8 @@ var authAddress = {
 var handlerCallback;
 var expectedType = 'register';
 
-var authServer;
+var config;
+var services;
 
 function handleMessage(message) {
 	switch (expectedType) {
@@ -44,41 +41,33 @@ function handleMessage(message) {
 
 describe("auth-server:", function() {
 	before(function(done) {
-		messageSwitch.reset();
-		var config = {
-			mongo : {
-				domain : 'test.com',
-				mongoUrl : MONGO_URL,
-				options : {
-					dropDbOnStartup : true
-				}
-			}
-		};
-		require('../braid-db').initialize(config, function(err, db) {
+		config = testUtil.createTestConfig("test.com");
+		testUtil.createTestServices(config, function(err, testServices) {
 			if (err) {
 				throw err;
 			}
-			braidDb = db;
-			require('../braid-auth').initialize(config, braidDb);
-			messageSwitch.registerResource('12345', null, handleMessage);
+			services = testServices;
+			services.messageSwitch.initialize(config, services);
+			services.authServer.initialize(config, services);
+			services.messageSwitch.registerResource('12345', null, handleMessage);
 			done();
 		});
 	});
 
 	after(function(done) {
-		braidDb.close(done);
+		services.braidDb.close(done);
 	});
 
 	it("verifies registration and auth", function(done) {
-		var registerMessage = factory.newRegisterRequest(userAddress.userId, "pa55word", authAddress, portAddress);
+		var registerMessage = services.factory.newRegisterRequest(userAddress.userId, "pa55word", authAddress, portAddress);
 		expectedType = 'register';
 		handlerCallback = function() {
-			var authMessage = factory.newAuthRequest(userAddress.userId, "pa55word", authAddress, portAddress);
+			var authMessage = services.factory.newAuthRequest(userAddress.userId, "pa55word", authAddress, portAddress);
 			expectedType = 'auth';
-			messageSwitch.deliver(authMessage);
+			services.messageSwitch.deliver(authMessage);
 			handlerCallback = done;
 		};
-		messageSwitch.deliver(registerMessage);
+		services.messageSwitch.deliver(registerMessage);
 		// Now we wait for handleMessage to be called with the response
 	});
 });

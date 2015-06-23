@@ -1,5 +1,6 @@
 var assert = require('assert');
 var factory = require('../braid-factory');
+var BraidDb = require('../braid-db');
 
 var MONGO_URL = "mongodb://localhost:27017/braidTest";
 
@@ -16,13 +17,8 @@ describe("braid-db:", function() {
 				}
 			}
 		};
-		require('../braid-db').initialize(config, function(err, db) {
-			if (err) {
-				throw err;
-			}
-			braidDb = db;
-			done();
-		});
+		braidDb = new BraidDb();
+		braidDb.initialize(config, done);
 	});
 
 	after(function(done) {
