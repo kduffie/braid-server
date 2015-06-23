@@ -107,6 +107,9 @@ Session.prototype.onSocketMessageReceived = function(msg) {
 	if (!message) {
 		return;
 	}
+	if (this.config.debug && this.config.debug.clientSessions && this.config.debug.clientSessions.logMessages) {
+		console.log("client: RX (" + this.userId + ")", message);
+	}
 	if (!message.type) {
 		this.sendErrorResponseIfAppropriate(message, "Invalid message.  Missing type.", 400, true);
 		return;

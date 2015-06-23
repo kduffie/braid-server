@@ -87,7 +87,9 @@ FederationSession.prototype.onSocketMessageReceived = function(msg) {
 	if (!message) {
 		return;
 	}
-	console.log("federation: RX (" + this.foreignDomain + ")", message);
+	if (this.config.debug && this.config.debug.federation && this.config.debug.federation.logMessages) {
+		console.log("federation: RX (" + this.foreignDomain + ")", message);
+	}
 	if (!message.type) {
 		this.sendErrorResponseIfAppropriate(message, "Invalid message.  Missing type.", 400, true);
 		return;
@@ -255,7 +257,7 @@ FederationSession.prototype.handleFederateRequest = function(message) {
 				}.bind(this));
 				var reply = this.factory.newReply(message, this.domainAddress);
 				this.sendMessage(reply);
-				setTimeout(this.close().bind(this), 300);
+				setTimeout(this.close.bind(this), 300);
 			}
 		}.bind(this));
 	} else {
@@ -325,7 +327,9 @@ FederationSession.prototype.kickTransmit = function() {
 		this.transmitInProgress = true;
 		var pendingItem = this.transmitQueue.shift();
 		if (pendingItem.message) {
-			console.log("federation: TX (" + this.foreignDomain + ")", pendingItem.message);
+			if (this.config.debug && this.config.debug.federation && this.config.debug.federation.logMessages) {
+				console.log("federation: TX (" + this.foreignDomain + ")", pendingItem.message);
+			}
 			this.connection.send(JSON.stringify(pendingItem.message), function() {
 				if (pendingItem.callback) {
 					pendingItem.callback();

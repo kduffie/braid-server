@@ -21,5 +21,16 @@
 		"port" : 25557,
 		"hello" : {
 		}
+	},
+	"debug" : {
+		"messageSwitch": {
+			"logMessages" : false
+		},
+		"clientSessions" : {
+			"logMessages" : false
+		},
+		"federation" : {
+			"logMessages" : false
+		}
 	}
 }
