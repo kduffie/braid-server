@@ -4,10 +4,33 @@
 
 var async = require('async');
 
+<<<<<<< HEAD
 var id = 1;
 
 function MessageSwitch() {
 }
+=======
+var resourceRegistrations = {};
+var userRegistrations = {};
+var requestRegistrations = {};
+var foreignDomainRegistrations = [];
+var messageHooks = [];
+
+var id = 1;
+
+var stats = {
+	registrations : {
+		user : 0,
+		resource : 0,
+		request : 0
+	},
+	messages : {
+		received : 0,
+		delivered : 0,
+		hooked : 0,
+	}
+};
+>>>>>>> c675731644cbf91dd438995aa8ba7f3807e73bff
 
 MessageSwitch.prototype.initialize = function() {
 	this.resourceRegistrations = {};
@@ -23,7 +46,8 @@ MessageSwitch.prototype.initialize = function() {
 		},
 		messages : {
 			received : 0,
-			delivered : 0
+			delivered : 0,
+			hooked : 0,
 		}
 	};
 };
@@ -260,6 +284,7 @@ MessageSwitch.prototype.deliver = function(message, callback) {
 		} else {
 			callback();
 		}
+<<<<<<< HEAD
 	}.bind(this));
 	tasks.push(function(callback) {
 		async.each(this.messageHooks, function(hook, callback) {
@@ -268,6 +293,16 @@ MessageSwitch.prototype.deliver = function(message, callback) {
 			callback();
 		}.bind(this), callback);
 	}.bind(this));
+=======
+	});
+	tasks.push(function(callback) {
+		async.each(messageHooks, function(hook, callback) {
+			hook(message);
+			stats.messages.hooked++;
+			callback();
+		});
+	});
+>>>>>>> c675731644cbf91dd438995aa8ba7f3807e73bff
 	async.parallel(tasks, callback);
 };
 
@@ -275,8 +310,25 @@ MessageSwitch.prototype.getStats = function() {
 	return this.stats;
 }
 
+<<<<<<< HEAD
 MessageSwitch.prototype.registerHook = function(handler) {
 	this.messageHooks.push(handler);
+=======
+function registerHook(handler) {
+	messageHooks.push(handler);
+}
+
+module.exports = {
+	reset : reset,
+	registerUser : registerUser,
+	registerResource : registerResource,
+	registerForRequests : registerForRequests,
+	registerForeignDomains : registerForeignDomains,
+	registerHook : registerHook,
+	unregister : unregister,
+	deliver : deliver,
+	getStats : getStats
+>>>>>>> c675731644cbf91dd438995aa8ba7f3807e73bff
 };
 
 module.exports = MessageSwitch;

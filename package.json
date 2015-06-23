@@ -1,8 +1,10 @@
 {
   "name": "braid-server",
-  "version": "0.2.13",
+  "version": "0.3.1",
   "description": "A federated server for interconnecting collaboration apps",
-  "bin": {"braid-server" : "./braid-server.js"},
+  "bin": {
+    "braid-server": "./braid-server.js"
+  },
   "main": "braid-server.js",
   "scripts": {
     "test": "mocha"
@@ -16,6 +18,7 @@
     "dns": "^0.2.2",
     "express": "^4.12.4",
     "fs": "0.0.2",
+    "lru-cache": "^2.6.4",
     "mongodb": "^2.0.33",
     "node-uuid": "^1.4.3",
     "path": "^0.11.14",

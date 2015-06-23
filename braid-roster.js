@@ -8,6 +8,8 @@ var async = require('async');
 var BraidAddress = require('./braid-address').BraidAddress;
 var newAddress = require('./braid-address').newAddress;
 
+var BOT_RESOURCE = '!bot';
+
 function RosterManager() {
 }
 
@@ -115,6 +117,7 @@ RosterManager.prototype._handleRosterMessage = function(message) {
 				if (activeUser) {
 					resources = activeUser.resources;
 				}
+				resources.push(BOT_RESOURCE);
 				var entry = this.factory.newRosterEntry(new BraidAddress(record.target.userId, record.target.domain), resources);
 				entries.push(entry);
 				callback();
@@ -130,9 +133,9 @@ RosterManager.prototype._handleRosterMessage = function(message) {
 		// First, we need to make sure that they aren't telling us about users that aren't in their own domain.
 		if (message.data && message.data.address && message.data.address.domain && message.data.address.domain === message.from.domain) {
 			if (message.data.online) {
-				this.onForeignClientSessionActivated(message.data);
+				onForeignClientSessionActivated(message.data);
 			} else {
-				this.onForeignClientSessionClosed(message.data);
+				onForeignClientSessionClosed(message.data);
 			}
 		} else {
 			// This is an invalid presence message. We'll ignore it.

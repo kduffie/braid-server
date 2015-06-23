@@ -115,12 +115,24 @@ BraidClient.prototype.pingServer = function(callback) {
 };
 
 BraidClient.prototype.parseAddressEntry = function(value) {
-	if (value.indexOf("@") >= 0) {
-		var parts = value.split("@");
-		return new BraidAddress(parts[0], parts[1]);
+	var userId = value;
+	var domain = this.address.domain;
+	var resource = null;
+	var parts = value.split("@", 2);
+	userId = parts[0];
+	var subparts;
+	if (parts.length > 1) {
+		domain = parts[1];
+		subparts = domain.split("/", 2);
+		domain = subparts[0];
 	} else {
-		return new BraidAddress(value, this.address.domain);
+		subparts = userId.split("/", 2);
+		userId = subparts[0];
 	}
+	if (subparts.length > 1) {
+		resource = subparts[1];
+	}
+	return new BraidAddress(userId, domain, resource);
 }
 
 BraidClient.prototype.pingEndpoint = function(user, callback) {
@@ -321,7 +333,7 @@ BraidClient.prototype.sendRequest = function(requestMessage, callback) {
 		if (cb) {
 			cb(this.userId + ": Request timeout");
 		}
-	}.bind(this), 30000);
+	}.bind(this), 15000);
 	console.log(this.userId + ": REQUEST", requestMessage);
 	this.socket.send(JSON.stringify(requestMessage));
 };
