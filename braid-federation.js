@@ -20,6 +20,7 @@ function FederationSession(manager) {
 	this.config = manager.config;
 	this.manager = manager;
 	this.factory = manager.services.factory;
+	this.eventBus = manager.services.eventBus;
 	this.messageSwitch = manager.services.messageSwitch;
 	this.state = 'uninitialized';
 	this.domainAddress = new BraidAddress(null, this.config.domain);
@@ -238,20 +239,25 @@ FederationSession.prototype.handleFederateRequest = function(message) {
 		// Now we have a token. We will now close our connection, and initiate
 		// a new outbound connection with the token
 		console.log("federation: opening callback connection to " + message.from.domain);
-		var connectionUrl = domainNameServer.resolveServer(message.from.domain);
-		console.log("federation: using URL " + connectionUrl);
-		var ws = new WebSocket(connectionUrl);
-		ws.on('open', function() {
-			var session = new FederationSession(this.manager);
-			session.initializeBasedOnFederationRequest(message.from.domain, token, ws);
+		domainNameServer.resolveServer(message.from.domain, function(err, connectionUrl) {
+			if (err) {
+				console.error("federation: error resolving", err);
+			} else {
+				console.log("federation: using URL " + connectionUrl);
+				var ws = new WebSocket(connectionUrl);
+				ws.on('open', function() {
+					var session = new FederationSession(this.manager);
+					session.initializeBasedOnFederationRequest(message.from.domain, token, ws);
+				}.bind(this));
+				ws.on('error', function(err) {
+					console.warn("Unable to establish connection to foreign domain: " + domain, err);
+					delete this.manager.pendingTransmitQueuesByDomain[domain];
+				}.bind(this));
+				var reply = this.factory.newReply(message, this.domainAddress);
+				this.sendMessage(reply);
+				setTimeout(this.close().bind(this), 300);
+			}
 		}.bind(this));
-		ws.on('error', function(err) {
-			console.warn("Unable to establish connection to foreign domain: " + domain, err);
-			delete this.manager.pendingTransmitQueuesByDomain[domain];
-		}.bind(this));
-		var reply = this.factory.newReply(message, this.domainAddress);
-		this.sendMessage(reply);
-		setTimeout(this.close().bind(this), 300);
 	} else {
 		this.sendErrorResponseIfAppropriate(message, "Invalid federate request.  Missing token.", 400, false);
 	}
@@ -361,7 +367,7 @@ FederationSession.prototype.finalize = function() {
 	if (this.foreignDomain) {
 		delete this.manager.activeSessionsByDomain[this.foreignDomain];
 	}
-	eventBus.fire('federation-session-closed', this);
+	this.eventBus.fire('federation-session-closed', this);
 };
 
 FederationSession.prototype.onConnectionError = function(err) {
@@ -422,17 +428,22 @@ FederationManager.prototype.initiateFederation = function(domain) {
 	// We open a websocket to the server responsible for that domain. If they
 	// answer, we just provide a token that will be used to authenticate on
 	// a callback connection
-	var connectionUrl = domainNameServer.resolveServer(domain);
-	var session = new FederationSession();
-	console.log("federation: initiating connection to " + domain + " at " + connectionUrl);
-	var ws = new WebSocket(connectionUrl);
-	ws.on('open', function() {
-		session.initializeBasedOnOutbound(domain, ws);
-	});
-	ws.on('error', function(err) {
-		console.warn("Unable to establish connection to foreign domain: " + domain, err);
-		delete this.pendingTransmitQueuesByDomain[domain];
-	});
+	domainNameServer.resolveServer(domain, function(err, connectionUrl) {
+		if (err) {
+			console.error("Failure resolving domain", domain);
+		} else {
+			var session = new FederationSession(this);
+			console.log("federation: initiating connection to " + domain + " at " + connectionUrl);
+			var ws = new WebSocket(connectionUrl);
+			ws.on('open', function() {
+				session.initializeBasedOnOutbound(domain, ws);
+			}.bind(this));
+			ws.on('error', function(err) {
+				console.warn("Unable to establish connection to foreign domain: " + domain, err);
+				delete this.pendingTransmitQueuesByDomain[domain];
+			}.bind(this));
+		}
+	}.bind(this));
 };
 
 FederationManager.prototype._handleSwitchedMessage = function(message) {
@@ -466,7 +477,7 @@ FederationManager.prototype._handleSwitchedMessage = function(message) {
 				// at which point we will process the pending queue at that point
 				queue = [ message ];
 				this.pendingTransmitQueuesByDomain[domain] = queue;
-				this.manager.initiateFederation(domain);
+				this.initiateFederation(domain);
 			}
 		}
 	}

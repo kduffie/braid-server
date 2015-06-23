@@ -143,7 +143,7 @@ BraidClient.prototype.parseAddressEntry = function(value) {
 		value = parts[0];
 	}
 	parts = value.split("@");
-	var userId = value;
+	var userId = parts[0];
 	if (parts.length > 1) {
 		domain = parts[1];
 	}

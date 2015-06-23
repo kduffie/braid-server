@@ -1,6 +1,6 @@
 {
   "name": "braid-server",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "A federated server for interconnecting collaboration apps",
   "bin": {
     "braid-server": "./braid-server.js"

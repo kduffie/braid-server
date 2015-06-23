@@ -240,11 +240,11 @@ Session.prototype.finalize = function() {
 };
 
 Session.prototype.onConnectionError = function(err) {
-	console.log(this, "onConnectionError", err);
+	console.log("onConnectionError", err);
 };
 
 Session.prototype.onConnectionClosed = function(code, reason) {
-	console.log(this, "onConnectionClosed", code, reason);
+	console.log("onConnectionClosed", code, reason);
 	this.finalize();
 };
 
