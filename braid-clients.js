@@ -38,7 +38,7 @@ Session.prototype.initialize = function() {
 	this.eventBus.fire('client-session-opened', this);
 };
 
-Session.prototype.handleSwitchedMessage = function(message) {
+Session.prototype._handleSwitchedMessage = function(message) {
 	if (message.from && message.from.resource && message.from.resource === this.resource) {
 		// Ignore reflected messages
 		return;

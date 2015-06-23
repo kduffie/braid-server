@@ -1,25 +1,35 @@
-var factory = require('./braid-factory');
-var config;
-var messageSwitch = require('./braid-message-switch');
 var BraidAddress = require('./braid-address').BraidAddress;
-var getUserRecord = require('./braid-auth').getUserRecord;
+
 var BOT_RESOURCE = '!bot';
 
-function sendMessage(message) {
-	messageSwitch.deliver(message);
+function BotManager() {
+
 }
 
-function createProxyAddress(userId) {
-	return new BraidAddress(userId, config.domain, BOT_RESOURCE);
-}
+BotManager.prototype.initialize = function(config, services) {
+	console.log("braid-client-bot: initializing");
+	this.config = config;
+	this.factory = services.factory;
+	this.messageSwitch = services.messageSwitch;
+	this.authServer = services.authServer;
+	this.messageSwitch.registerHook(this.messageHandler.bind(this));
+};
 
-function handlePing(message, to) {
-	var reply = factory.newReply(message, createProxyAddress(to.userId));
-	sendMessage(reply);
-}
+BotManager.prototype.sendMessage = function(message) {
+	this.messageSwitch.deliver(message);
+};
 
-function handleMessage(message, to, isDirected) {
-	getUserRecord(to.userId, function(err, userRecord) {
+BotManager.prototype.createProxyAddress = function(userId) {
+	return new BraidAddress(userId, this.config.domain, BOT_RESOURCE);
+};
+
+BotManager.prototype.handlePing = function(message, to) {
+	var reply = this.factory.newReply(message, this.createProxyAddress(to.userId));
+	this.sendMessage(reply);
+};
+
+BotManager.prototype.handleMessage = function(message, to, isDirected) {
+	this.authServer.getUserRecord(to.userId, function(err, userRecord) {
 		if (err) {
 			console.warn("braid-client-bot: error getting user record", err);
 		} else if (userRecord) {
@@ -27,7 +37,7 @@ function handleMessage(message, to, isDirected) {
 			case 'request':
 				switch (message.request) {
 				case 'ping':
-					handlePing(message, to);
+					this.handlePing(message, to);
 					break;
 				}
 				break;
@@ -45,10 +55,10 @@ function handleMessage(message, to, isDirected) {
 		} else {
 			console.warn("braid-client-bot: ignoring message sent to non-existent user: " + to.userId);
 		}
-	});
-}
+	}.bind(this));
+};
 
-function messageHandler(message) {
+BotManager.prototype.messageHandler = function(message) {
 	// We're seeing every message going through the switch. We need to efficiently select those
 	// that we need to process
 
@@ -70,7 +80,7 @@ function messageHandler(message) {
 	for (var i = 0; i < message.to.length; i++) {
 		var to = message.to[i];
 		if (to.userId && to.resource === BOT_RESOURCE && to.domain === config.domain) {
-			handleMessage(message, to, true);
+			this.handleMessage(message, to, true);
 			return;
 		}
 	}
@@ -79,19 +89,13 @@ function messageHandler(message) {
 	for (var i = 0; i < message.to.length; i++) {
 		var to = message.to[i];
 		if (to.userId && !to.resource && to.domain === config.domain) {
-			handleMessage(message, to, false);
+			this.handleMessage(message, to, false);
 			return;
 		}
 	}
 
-}
+};
 
-function initialize(configuration) {
-	console.log("braid-client-bot: initializing");
-	config = configuration;
-	messageSwitch.registerHook(messageHandler);
-
-}
 module.exports = {
-	initialize : initialize
+	BotManager : BotManager
 };

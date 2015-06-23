@@ -20,6 +20,7 @@ var AuthServer = require('./braid-auth').AuthServer;
 var RosterManager = require('./braid-roster').RosterManager;
 var ClientSessionManager = require('./braid-clients').ClientSessionManager;
 var FederationManager = require('./braid-federation').FederationManager;
+var BotManager = require('./braid-bot').BotManager;
 
 var WebSocketServer = require('ws').Server;
 var http = require('http');
@@ -147,6 +148,7 @@ function start() {
 			var rosterManager = new RosterManager();
 			var clientSessionManager = new ClientSessionManager();
 			var federationManager = new FederationManager();
+			var botManager = new BotManager();
 			var services = {
 				factory: require('./braid-factory'),
 				braidDb: braidDb,
@@ -155,7 +157,8 @@ function start() {
 				authServer: authServer,
 				rosterManager: rosterManager,
 				clientSessionManager: clientSessionManager,
-				federationManager: federationManager
+				federationManager: federationManager,
+				botManager: botManager
 			};
 			eventBus.initialize(config, services);
 			messageSwitch.initialize(config, services);
@@ -163,8 +166,7 @@ function start() {
 			rosterManager.initialize(config, services);
 			clientSessionManager.initialize(config, services);
 			federationManager.initialize(config, services);
-
-			// require('./braid-bot').initialize(config, braidDb);
+			botManager.initialize(config, services);
 			
 			startServer(services);
 		});
