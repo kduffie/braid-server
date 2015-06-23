@@ -17,8 +17,8 @@ BotManager.prototype.initialize = function(config, services) {
 	this.messageSwitch.registerHook(this.messageHandler.bind(this));
 	this.mutationProcessorsByTileId = {};
 	mutationHandler = new TileMutationMongoHandler({
-		onFileMissing : handleOnFileMissing,
-		onMutationsCompleted : handleOnMutationsCompleted,
+		onFileMissing : this.handleOnFileMissing.bind(this),
+		onMutationsCompleted : this.handleOnMutationsCompleted.bind(this),
 	}, this.braidDb);
 };
 
@@ -77,9 +77,9 @@ BotManager.prototype.handleTileShare = function(message) {
 						var acceptMessage = factory.newTileAcceptMessage(message.from, createProxyAddress(message.from.userId), message.data.tileId);
 						sendMessage(acceptMessage);
 					}
-				});
+				}.bind(this));
 			}
-		});
+		}.bind(this));
 	}
 };
 
@@ -92,10 +92,10 @@ BotManager.prototype.processMutation = function(tileRecord, mutation) {
 			mutationProcessorsByTileId[mutation.tileId] = mp;
 		}
 		mp.addMutation(mutation);
-	});
+	}.bind(this));
 };
 
-fBotManager.prototype.handleTileMutation = function(message, to) {
+BotManager.prototype.handleTileMutation = function(message, to) {
 	// If we receive a tile mutation, we will process it, but only if it is
 	// for a tile that we have. In that case, we don't care who they were
 	// sending it to.
@@ -114,9 +114,9 @@ fBotManager.prototype.handleTileMutation = function(message, to) {
 						console.log("braid-bot:  Received mutation to be integrated", message.data);
 						processMutation(tileRecord, message.data);
 					}
-				});
+				}.bind(this));
 			}
-		});
+		}.bind(this));
 	}
 };
 

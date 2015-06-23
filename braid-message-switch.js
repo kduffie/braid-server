@@ -147,7 +147,9 @@ MessageSwitch.prototype.unregister = function(registration) {
 };
 
 MessageSwitch.prototype.deliver = function(message, callback) {
-	console.log("X ", message);
+	if (this.config && this.config.debug && this.config.debug.messageSwitch && this.config.debug.messageSwitch.logMessages) {
+		console.log("X ", message);
+	}
 	this.stats.messages.received++;
 	var tasks = [];
 	tasks.push(function(callback) {
