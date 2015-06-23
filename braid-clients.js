@@ -1,11 +1,6 @@
 var async = require('async');
 var BraidAddress = require('./braid-address').BraidAddress;
-var factory = require('./braid-factory');
 var newUuid = require('./braid-uuid');
-var messageSwitch = require('./braid-message-switch');
-var eventBus = require('./braid-event-bus');
-
-var config;
 
 /*
  * A Session object represents one websocket connection to a user. Each Session has a unique full address once it has been authenticated, because a new UUID is
@@ -20,28 +15,30 @@ var config;
  * Messages have a 'request' and a 'data' whose contents (if any) are determined by the type of request.
  */
 
-function Session(connection) {
+function Session(config, services, connection) {
 	console.log("braid-clients:  Handling new connection");
+	this.config = config;
+	this.factory = services.factory;
+	this.eventBus = services.eventBus;
+	this.messageSwitch = services.messageSwitch;
 	this.connection = connection;
 	this.resource = newUuid();
 	this.userAddress = null;
 	this.state = 'unauthenticated';
 	this.transmitQueue = [];
-	this.authenticationServerAddress = new BraidAddress(null, config.domain, "!auth");
-	this.rosterServerAddress = new BraidAddress(null, config.domain, "!roster");
+	this.authenticationServerAddress = new BraidAddress(null, this.config.domain, "!auth");
+	this.rosterServerAddress = new BraidAddress(null, this.config.domain, "!roster");
 }
 
 Session.prototype.initialize = function() {
 	this.connection.on("message", this.onSocketMessageReceived.bind(this));
 	this.connection.on("error", this.onConnectionError.bind(this));
 	this.connection.on("close", this.onConnectionClosed.bind(this));
-	this.portSwitchPort = messageSwitch.registerResource(this.resource, null, function(message) {
-		this.handleSwitchedMessage(message);
-	}.bind(this));
-	eventBus.fire('client-session-opened', this);
+	this.portSwitchPort = this.messageSwitch.registerResource(this.resource, null, this._handleSwitchedMessage.bind(this));
+	this.eventBus.fire('client-session-opened', this);
 };
 
-Session.prototype.handleSwitchedMessage = function(message) {
+Session.prototype._handleSwitchedMessage = function(message) {
 	switch (this.state) {
 	case 'unauthenticated':
 		if (this.authenticationServerAddress.equals(message.from)) {
@@ -75,13 +72,11 @@ Session.prototype.activateSession = function(message) {
 	}
 	// We were listening on everything with the resource, but now, instead, we'll listen to
 	// all messages sent to the user -- even without a resource
-	messageSwitch.unregister(this.portSwitchPort);
-	this.portSwitchPort = messageSwitch.registerUser(this.userAddress.userId, this.userAddress.domain, function(message) {
-		this.handleSwitchedMessage(message);
-	}.bind(this));
+	this.messageSwitch.unregister(this.portSwitchPort);
+	this.portSwitchPort = this.messageSwitch.registerUser(this.userAddress.userId, this.userAddress.domain, this._handleSwitchedMessage.bind(this));
 	this.state = 'active';
 	console.log("Firing client-session-activated", message);
-	eventBus.fire('client-session-activated', this);
+	this.eventBus.fire('client-session-activated', this);
 };
 
 Session.prototype.onSocketMessageReceived = function(msg) {
@@ -113,14 +108,15 @@ Session.prototype.onSocketMessageReceived = function(msg) {
 		this.clientHello = message;
 		this.clientCapabilities = this.clientHello.capabilities;
 		var package = require('./package.json');
-		var reply = factory.newHelloReply(message, factory.newHelloPayload(package.name, package.version, config.client.capabilities), this.userAddress);
+		var reply = this.factory.newHelloReply(message, this.factory.newHelloPayload(package.name, package.version, this.config.client.capabilities),
+				this.userAddress);
 		this.sendMessage(reply);
 	} else {
 		try {
 			switch (this.state) {
 			case 'unauthenticated':
 				message.to = this.authenticationServerAddress;
-				messageSwitch.deliver(message);
+				this.messageSwitch.deliver(message);
 				break;
 			case 'active':
 				switch (message.request) {
@@ -130,7 +126,7 @@ Session.prototype.onSocketMessageReceived = function(msg) {
 				default:
 					break;
 				}
-				messageSwitch.deliver(message);
+				this.messageSwitch.deliver(message);
 				break;
 			default:
 				this.sendErrorResponseIfAppropriate(message, "Invalid state", 400, true);
@@ -154,9 +150,9 @@ Session.prototype.parseMessage = function(text) {
 
 Session.prototype.sendErrorResponseIfAppropriate = function(message, errorMessage, errorCode, closeSocket) {
 	if (message.type === 'request' || message.type === 'cast') {
-		var reply = factory.newErrorReply(message, errorCode, errorMessage);
+		var reply = this.factory.newErrorReply(message, errorCode, errorMessage);
 		this.sendMessage(reply, function() {
-			if (close) {
+			if (closeSocket) {
 				this.close();
 			}
 		}.bind(this));
@@ -209,8 +205,8 @@ Session.prototype.close = function() {
 
 Session.prototype.finalize = function() {
 	this.state = 'closed';
-	messageSwitch.unregister(this.portSwitchPort);
-	eventBus.fire('client-session-closed', this);
+	this.messageSwitch.unregister(this.portSwitchPort);
+	this.eventBus.fire('client-session-closed', this);
 };
 
 Session.prototype.onConnectionError = function(err) {
@@ -222,17 +218,20 @@ Session.prototype.onConnectionClosed = function(code, reason) {
 	this.finalize();
 };
 
-function initialize(cfg) {
-	console.log("clients: initializing");
-	config = cfg;
+function ClientSessionManager() {
 }
 
-function acceptSession(connection) {
-	var session = new Session(connection);
+ClientSessionManager.prototype.initialize = function(configuration, services) {
+	console.log("clients: initializing");
+	this.config = configuration;
+	this.services = services;
+};
+
+ClientSessionManager.prototype.acceptSession = function(connection) {
+	var session = new Session(this.config, this.services, connection);
 	session.initialize();
 }
 
 module.exports = {
-	initialize : initialize,
-	acceptSession : acceptSession
+	ClientSessionManager : ClientSessionManager
 };

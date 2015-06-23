@@ -17,6 +17,9 @@ var BraidDb = require('./braid-db');
 var EventBus = require('./braid-event-bus');
 var MessageSwitch = require('./braid-message-switch');
 var AuthServer = require('./braid-auth').AuthServer;
+var RosterManager = require('./braid-roster').RosterManager;
+var ClientSessionManager = require('./braid-clients').ClientSessionManager;
+var FederationManager = require('./braid-federation').FederationManager;
 
 var WebSocketServer = require('ws').Server;
 var http = require('http');
@@ -24,7 +27,7 @@ var http = require('http');
 var args = process.argv.slice(2);
 var config = {};
 
-function startServer() {
+function startServer(services) {
 	if (config.client && config.client.enabled) {
 		var clientPort = 25555;
 		if (config.client.port) {
@@ -41,7 +44,7 @@ function startServer() {
 			server : clientServer
 		});
 		clientWss.on('connection', function(conn) {
-			require('./braid-clients').acceptSession(conn);
+			services.clientSessionManager.acceptSession(conn);
 		});
 	}
 	if (config.federation && config.federation.enabled) {
@@ -59,7 +62,7 @@ function startServer() {
 			server : federationServer
 		});
 		federationWss.on('connection', function(conn) {
-			require('./braid-federation').acceptFederationSession(conn);
+			services.federationManager.acceptFederationSession(conn);
 		});
 	}
 }
@@ -138,22 +141,32 @@ function start() {
 				console.log("Error opening mongo.  Are you running mongo?");
 				throw "Mongo error: " + err;
 			}
+			var eventBus = new EventBus();
+			var messageSwitch = new MessageSwitch();
+			var authServer = new AuthServer();
+			var rosterManager = new RosterManager();
+			var clientSessionManager = new ClientSessionManager();
+			var federationManager = new FederationManager();
 			var services = {
 				factory: require('./braid-factory'),
 				braidDb: braidDb,
-				eventBus: new EventBus(),
-				messageSwitch: new MessageSwitch(),
-				authServer: new AuthServer()
+				eventBus: eventBus,
+				messageSwitch: messageSwitch,
+				authServer: authServer,
+				rosterManager: rosterManager,
+				clientSessionManager: clientSessionManager,
+				federationManager: federationManager
 			};
-			services.eventBus.initialize(config, services);
-			services.messageSwitch.initialize(config, services);
-			services.authServer.initialize(config, services);
-			
-			require('./braid-roster').initialize(config, braidDb);
-			require('./braid-clients').initialize(config);
-			require('./braid-federation').initialize(config);
+			eventBus.initialize(config, services);
+			messageSwitch.initialize(config, services);
+			authServer.initialize(config, services);
+			rosterManager.initialize(config, services);
+			clientSessionManager.initialize(config, services);
+			federationManager.initialize(config, services);
+
 			// require('./braid-bot').initialize(config, braidDb);
-			startServer();
+			
+			startServer(services);
 		});
 	});
 }
