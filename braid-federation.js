@@ -472,6 +472,14 @@ FederationManager.prototype._handleSwitchedMessage = function(message) {
 	}
 };
 
+FederationManager.prototype.shutdown = function() {
+	for ( var key in this.sessionsById) {
+		if (this.sessionsById.hasOwnProperty(key)) {
+			this.sessionsById[key].close();
+		}
+	}
+};
+
 var clientCapabilities = {
 	v : 1,
 	delivery : {

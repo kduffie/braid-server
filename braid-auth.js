@@ -1,3 +1,4 @@
+var assert = require('assert');
 var bcrypt = require('bcrypt');
 var BraidAddress = require('./braid-address').BraidAddress;
 var factory = require('./braid-factory');
@@ -20,9 +21,11 @@ AuthServer.prototype.initialize = function(configuration, domainServices) {
 		maxAge : 1000 * 60 * 60
 	});
 	this.messageSwitch.registerResource('!auth', this.config.domain, this._handleMessage.bind(this));
+	this.initialized = true;
 };
 
 AuthServer.prototype._createUser = function(userId, password, callback) {
+	assert(this.initialized);
 	bcrypt.genSalt(10, function(err, salt) {
 		bcrypt.hash(password, salt, function(err, hash) {
 			var userRecord = this.factory.newAccountRecord(userId, this.config.domain, hash);
@@ -36,6 +39,7 @@ AuthServer.prototype._createUser = function(userId, password, callback) {
 };
 
 AuthServer.prototype._processRegisterMessage = function(message) {
+	assert(this.initialized);
 	if (!message.data || !message.data.user || !message.data.password) {
 		this.messageSwitch.deliver(this.factory.newErrorReply(message, 400, "Missing credentials", this.address));
 		return;
@@ -73,6 +77,7 @@ AuthServer.prototype._processRegisterMessage = function(message) {
 };
 
 AuthServer.prototype.getUserRecord = function(userId, callback) {
+	assert(this.initialized);
 	var record = this.userCache.get(userId);
 	if (record) {
 		if (record.notFound) {
@@ -98,6 +103,7 @@ AuthServer.prototype.getUserRecord = function(userId, callback) {
 };
 
 AuthServer.prototype._authenticateUser = function(userId, password, callback) {
+	assert(this.initialized);
 	this.getUserRecord(userId, function(err, user) {
 		if (err) {
 			callback(err);
@@ -118,6 +124,7 @@ AuthServer.prototype._authenticateUser = function(userId, password, callback) {
 };
 
 AuthServer.prototype._processAuthMessage = function(message) {
+	assert(this.initialized);
 	if (!message.data || !message.data.user) {
 		this.messageSwitch.deliver(this.factory.newErrorReply(message, 400, "Missing credentials", this.address));
 		return;
@@ -137,6 +144,8 @@ AuthServer.prototype._processAuthMessage = function(message) {
 };
 
 AuthServer.prototype._handleMessage = function(message) {
+	assert(this.initialized);
+	console.log("auth: handleMessage", message);
 	switch (message.type) {
 	case 'request':
 		switch (message.request) {

@@ -7,7 +7,7 @@ var EventBus = require('./braid-event-bus');
 var MessageSwitch = require('./braid-message-switch');
 var AuthServer = require('./braid-auth').AuthServer;
 var RosterManager = require('./braid-roster').RosterManager;
-var ClientSessionManager = require('./braid-clients').ClientSessionManager;
+var ClientSessionManager = require('./braid-client-sessions').ClientSessionManager;
 var FederationManager = require('./braid-federation').FederationManager;
 var BotManager = require('./braid-bot').BotManager;
 
@@ -22,7 +22,7 @@ BraidServer.prototype.initialize = function(config) {
 	this.config = config;
 };
 
-BraidServer.prototype.start = function() {
+BraidServer.prototype.start = function(callback) {
 	var braidDb = new BraidDb();
 	braidDb.initialize(this.config, function(err) {
 		if (err) {
@@ -55,25 +55,25 @@ BraidServer.prototype.start = function() {
 		federationManager.initialize(this.config, this.services);
 		botManager.initialize(this.config, this.services);
 
-		this.startServer();
+		this.startServer(callback);
 	}.bind(this));
 };
 
-BraidServer.prototype.startServer = function() {
+BraidServer.prototype.startServer = function(callback) {
 	if (this.config.client && this.config.client.enabled) {
 		var clientPort = 25555;
 		if (this.config.client.port) {
 			clientPort = this.config.client.port;
 		}
-		var clientApp = express();
-		clientApp.use(express.static(path.join(__dirname, 'public')));
+		this.clientApp = express();
+		this.clientApp.use(express.static(path.join(__dirname, 'public')));
 
 		console.log("Listening for client connections on port " + clientPort);
-		var clientServer = http.createServer(clientApp);
-		clientServer.listen(clientPort);
+		this.clientServer = http.createServer(this.clientApp);
+		this.clientServer.listen(clientPort);
 
 		var clientWss = new WebSocketServer({
-			server : clientServer
+			server : this.clientServer
 		});
 		clientWss.on('connection', function(conn) {
 			this.services.clientSessionManager.acceptSession(conn);
@@ -84,20 +84,29 @@ BraidServer.prototype.startServer = function() {
 		if (this.config.federation.port) {
 			federationPort = this.config.federation.port;
 		}
-		var federationApp = express();
-		federationApp.use(express.static(path.join(__dirname, 'public')));
+		this.federationApp = express();
+		this.federationApp.use(express.static(path.join(__dirname, 'public')));
 
 		console.log("Listening for federation connections on port " + federationPort);
-		var federationServer = http.createServer(federationApp);
-		federationServer.listen(federationPort);
+		this.federationServer = http.createServer(this.federationApp);
+		this.federationServer.listen(federationPort);
 
 		var federationWss = new WebSocketServer({
-			server : federationServer
+			server : this.federationServer
 		});
 		federationWss.on('connection', function(conn) {
 			this.services.federationManager.acceptFederationSession(conn);
 		}.bind(this));
 	}
+	callback();
 }
+
+BraidServer.prototype.shutdown = function(callback) {
+	this.services.clientSessionManager.shutdown();
+	this.services.federationManager.shutdown();
+	this.clientServer.close();
+	this.federationServer.close();
+	this.services.braidDb.close(callback);
+};
 
 module.exports = BraidServer;

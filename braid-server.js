@@ -4,7 +4,7 @@ var fs = require('fs');
 var path = require('path');
 var cliArgs = require("command-line-args");
 
-var BraidServer = require('./braid-server-instance');
+var BraidServer = require('./braid-server-class');
 
 function start() {
 	/* define the command-line options */
@@ -75,7 +75,7 @@ function start() {
 		};
 		var server = new BraidServer();
 		server.initialize(config);
-		server.start();
+		server.start(function() {});
 	});
 }
 

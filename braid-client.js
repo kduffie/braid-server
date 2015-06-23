@@ -2,15 +2,22 @@
 
 var factory;
 var BraidAddress;
+var isWebClient = true;
 
 if (typeof require !== 'undefined') {
-	BraidAddress = require('./braid-address');
+	BraidAddress = require('./braid-address').BraidAddress;
 	factory = require('./braid-factory');
+	var WebSocket = require('ws');
+	isWebClient = false;
 }
 
 // braid-address
-function BraidClient(domain, port) {
+function BraidClient(domain, port, server) {
 	this.domain = domain;
+	this.server = server;
+	if (!server) {
+		this.server = domain;
+	}
 	this.port = port;
 	this.pendingRequests = {};
 	this.roster = {};
@@ -24,11 +31,18 @@ BraidClient.prototype.onImReceived = function(handler) {
 BraidClient.prototype.connect = function(callback) {
 	console.log(this.userId + ": connect");
 	this.connectCallback = callback;
-	this.socket = new WebSocket("ws://" + this.domain + ":" + this.port + "/braid-client", []);
-	this.socket.onopen = this.onSocketOpen.bind(this);
-	this.socket.onerror = this.onSocketError.bind(this);
-	this.socket.onmessage = this.onSocketMessage.bind(this);
-	this.socket.onclose = this.onSocketClosed.bind(this);
+	this.socket = new WebSocket("ws://" + this.server + ":" + this.port + "/braid-client", []);
+	if (isWebClient) {
+		this.socket.on('open', this.onSocketOpen.bind(this));
+		this.socket.on('error', this.onSocketError.bind(this));
+		this.socket.on('message', this.onSocketMessage.bind(this));
+		this.socket.on('close', this.onSocketClosed.bind(this));
+	} else {
+		this.socket.onopen = this.onSocketOpen.bind(this);
+		this.socket.onerror = this.onSocketError.bind(this);
+		this.socket.onmessage = this.onSocketMessage.bind(this);
+		this.socket.onclose = this.onSocketClosed.bind(this);
+	}
 };
 
 BraidClient.prototype.sendHello = function(payload, callback) {
@@ -115,29 +129,30 @@ BraidClient.prototype.pingServer = function(callback) {
 };
 
 BraidClient.prototype.parseAddressEntry = function(value) {
-	var userId = value;
+	if (!value) {
+		return null;
+	}
+	if (value.domain) {
+		return value;
+	}
 	var domain = this.address.domain;
 	var resource = null;
-	var parts = value.split("@", 2);
-	userId = parts[0];
-	var subparts;
+	var parts = value.split("/", 2);
+	if (parts.length > 1) {
+		resource = parts[1];
+		value = parts[0];
+	}
+	parts = value.split("@");
+	var userId = value;
 	if (parts.length > 1) {
 		domain = parts[1];
-		subparts = domain.split("/", 2);
-		domain = subparts[0];
-	} else {
-		subparts = userId.split("/", 2);
-		userId = subparts[0];
-	}
-	if (subparts.length > 1) {
-		resource = subparts[1];
 	}
 	return new BraidAddress(userId, domain, resource);
 }
 
-BraidClient.prototype.pingEndpoint = function(user, callback) {
-	console.log(this.userId + ": pingEndpoint", user);
-	var to = this.parseAddressEntry(user);
+BraidClient.prototype.pingEndpoint = function(address, callback) {
+	console.log(this.userId + ": pingEndpoint", address);
+	to = this.parseAddressEntry(address);
 	var request = factory.newPingRequest(to);
 	this.sendRequest(request, function(err, reply) {
 		if (err) {
@@ -198,7 +213,7 @@ BraidClient.prototype.dumpRoster = function(event) {
 };
 
 BraidClient.prototype.onSocketMessage = function(event) {
-	var messageString = event.data;
+	var messageString = isWebClient ? event : event.data;
 	var message;
 	try {
 		message = JSON.parse(messageString);
@@ -349,7 +364,5 @@ BraidClient.prototype.sendReply = function(replyMessage) {
 };
 
 if (typeof module !== 'undefined') {
-	module.exports = {
-		BraidClient : BraidClient
-	};
+	module.exports = BraidClient;
 }

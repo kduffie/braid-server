@@ -72,14 +72,14 @@ BotManager.prototype.messageHandler = function(message) {
 	}
 
 	// Don't want to process messages I have sent
-	if (message.from.domain === config.domain && message.from.resource === BOT_RESOURCE) {
+	if (message.from.domain === this.config.domain && message.from.resource === BOT_RESOURCE) {
 		return;
 	}
 
 	// If the message is specifically to my resource on behalf of any user, I'll handle it
 	for (var i = 0; i < message.to.length; i++) {
 		var to = message.to[i];
-		if (to.userId && to.resource === BOT_RESOURCE && to.domain === config.domain) {
+		if (to.userId && to.resource === BOT_RESOURCE && to.domain === this.config.domain) {
 			this.handleMessage(message, to, true);
 			return;
 		}
@@ -88,7 +88,7 @@ BotManager.prototype.messageHandler = function(message) {
 	// If the message is sent to a user in my domain, but without a resource, then I'll act as an active session
 	for (var i = 0; i < message.to.length; i++) {
 		var to = message.to[i];
-		if (to.userId && !to.resource && to.domain === config.domain) {
+		if (to.userId && !to.resource && to.domain === this.config.domain) {
 			this.handleMessage(message, to, false);
 			return;
 		}

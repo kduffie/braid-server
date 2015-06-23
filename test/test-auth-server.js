@@ -41,12 +41,14 @@ function handleMessage(message) {
 
 describe("auth-server:", function() {
 	before(function(done) {
-		config = testUtil.createTestConfig();
+		config = testUtil.createTestConfig("test.com");
 		testUtil.createTestServices(config, function(err, testServices) {
 			if (err) {
 				throw err;
 			}
 			services = testServices;
+			services.messageSwitch.initialize(config, services);
+			services.authServer.initialize(config, services);
 			services.messageSwitch.registerResource('12345', null, handleMessage);
 			done();
 		});

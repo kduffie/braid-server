@@ -6,9 +6,9 @@ function BraidDb() {
 
 BraidDb.prototype.initialize = function(configuration, callback) {
 	console.log("db: initializing");
-	config = configuration;
-	this.mongoUrl = config.mongo.mongoUrl;
-	this.options = config.mongo.options;
+	this.config = configuration;
+	this.mongoUrl = this.config.mongo.mongoUrl;
+	this.options = this.config.mongo.options;
 	this.accounts = null;
 	this.subscriptions = null;
 	this.userTiles = null;
@@ -58,7 +58,8 @@ BraidDb.prototype._open = function(callback) {
 };
 
 BraidDb.prototype.close = function(callback) {
-	this.db.close(false, callback);
+	// this.db.close(false, callback); KD: seems to be a bug in the mongo driver for node. This throws an uncatchable.
+	callback();
 };
 
 BraidDb.prototype._setup = function(callback) {

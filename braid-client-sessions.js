@@ -15,8 +15,10 @@ var newUuid = require('./braid-uuid');
  * Messages have a 'request' and a 'data' whose contents (if any) are determined by the type of request.
  */
 
-function Session(config, services, connection) {
+function Session(config, services, connection, sessionId, manager) {
 	console.log("braid-clients:  Handling new connection");
+	this.sessionId = sessionId;
+	this.manager = manager;
 	this.config = config;
 	this.factory = services.factory;
 	this.eventBus = services.eventBus;
@@ -144,6 +146,12 @@ Session.prototype.onSocketMessageReceived = function(msg) {
 				case 'roster':
 					message.to = this.rosterServerAddress;
 					break;
+				case 'ping':
+					if (!message.to || message.to.length === 0) {
+						var pingReply = this.factory.newReply(message, this.userAddress, new BraidAddress(null, this.config.domain));
+						this.sendMessage(pingReply);
+						return;
+					}
 				default:
 					break;
 				}
@@ -227,6 +235,7 @@ Session.prototype.close = function() {
 Session.prototype.finalize = function() {
 	this.state = 'closed';
 	this.messageSwitch.unregister(this.portSwitchPort);
+	delete this.manager.sessions[this.sessionId];
 	this.eventBus.fire('client-session-closed', this);
 };
 
@@ -240,6 +249,8 @@ Session.prototype.onConnectionClosed = function(code, reason) {
 };
 
 function ClientSessionManager() {
+	this.sessionId = 1;
+	this.sessions = {};
 }
 
 ClientSessionManager.prototype.initialize = function(configuration, services) {
@@ -249,9 +260,19 @@ ClientSessionManager.prototype.initialize = function(configuration, services) {
 };
 
 ClientSessionManager.prototype.acceptSession = function(connection) {
-	var session = new Session(this.config, this.services, connection);
+	var sid = "s" + this.sessionId++;
+	var session = new Session(this.config, this.services, connection, sid, this);
 	session.initialize();
-}
+	this.sessions[sid] = session;
+};
+
+ClientSessionManager.prototype.shutdown = function() {
+	for ( var key in this.sessions) {
+		if (this.sessions.hasOwnProperty(key)) {
+			this.sessions[key].close();
+		}
+	}
+};
 
 module.exports = {
 	ClientSessionManager : ClientSessionManager
