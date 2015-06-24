@@ -57,7 +57,7 @@ function start() {
 		if (!config.mongo.mongoUrl) {
 			throw "Invalid configuration.  mongo.mongoUrl is mandatory";
 		}
-		config.mongo.mongoUrl = config.mongo.mongoUrl.replace("{domain}", config.domain.replace(".", "_"));
+		config.mongo.mongoUrl = config.mongo.mongoUrl.split("{domain}").join(config.domain.split(".").join("_"));
 		console.log("Braid server initializing for domain: " + config.domain);
 		console.log("Configuration", config);
 		if (!config.domain) {

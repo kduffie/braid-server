@@ -61,7 +61,7 @@ function createTestConfig(domain, clientPort, serverPort) {
 	if (!serverPort) {
 		serverPort = clientPort + 2
 	}
-	var mongoUrl = MONGO_URL.replace("{domain}", domain.replace(".", "_"));
+	var mongoUrl = MONGO_URL.split("{domain}").join(domain.split(".").join("_"));
 	var config = {
 		"domain" : domain,
 		"mongo" : {
