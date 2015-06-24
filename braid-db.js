@@ -288,8 +288,8 @@ BraidDb.prototype.findTilesByMember = function(member, callback /* (err, records
 	this.tiles.find({
 		members : {
 			"$elemMatch" : {
-				"members.userId" : member.userId,
-				"members.domain" : member.domain
+				userId : member.userId,
+				domain : member.domain
 			}
 		}
 	}).toArray(callback);
@@ -430,21 +430,21 @@ BraidDb.prototype.updateTileSummaryInfo = function(tileId, summaryInfo, callback
 	}, callback);
 };
 
-BraidDb.prototype.addTileMember = function(processor, memberDescriptor, callback) {
+BraidDb.prototype.addTileMember = function(tileId, memberAddress, callback) {
 	this.tiles.update({
-		tileId : processor.tileId
+		tileId : tileId
 	}, {
 		$addToSet : {
-			members : memberDescriptor
+			members : memberAddress
 		}
 	}, {
 		w : 1
 	}, callback);
 };
 
-BraidDb.prototype.removeTileMember = function(processor, memberDescriptor, callback) {
+BraidDb.prototype.removeTileMember = function(tileId, memberDescriptor, callback) {
 	this.tileCollection.update({
-		tileId : processor.tileId
+		tileId : tileId
 	}, {
 		$pull : {
 			members : memberDescriptor

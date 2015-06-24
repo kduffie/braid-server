@@ -1,3 +1,4 @@
+var async = require('async');
 var BraidAddress = require('./braid-address').BraidAddress;
 var TileMutationProcessor = require('./braid-tile-mutation-processor');
 var TileMutationMongoHandler = require('./braid-tile-mutation-mongo-handler');
@@ -243,7 +244,7 @@ BotManager.prototype.handleTileInventoryRequest = function(message, to) {
 					if (err) {
 						console.error("Failure getting user tile", err);
 						callback(err);
-					} else if (record) {
+					} else if (userTileRecord) {
 						// Targeted user does have this tile. So we need to put it into the correct list
 						// based on comparing with what we see in the request, if anything, for this tile
 						var matchingSummary;
@@ -307,10 +308,10 @@ BotManager.prototype.handleTileInventoryRequest = function(message, to) {
 					} else {
 						callback();
 					}
-				});
+				}.bind(this));
 			}.bind(this), function(err) {
 				// All records have been reviewed. Now we assemble our response
-				var reply = this.factory.newTileInventoryListReply(message, new BraidAddress(to.userId, this.config.domain, BOT_RESOURCE), mismatchedTiles,
+				var reply = this.factory.newTileInventoryReply(message, new BraidAddress(to.userId, this.config.domain, BOT_RESOURCE), mismatchedTiles,
 						missingTiles, []);
 				this.sendMessage(reply);
 			}.bind(this));

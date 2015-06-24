@@ -81,7 +81,7 @@ TileMutationMongoHandler.prototype.unsaveMutation = function(processor, mutation
 };
 
 TileMutationMongoHandler.prototype.addTileMember = function(processor, memberDescriptor, callback) {
-	this.braidDb.addTileMember(processor.tileId, memberDescriptor, callback);
+	this.braidDb.addTileMember(processor.tileId, memberDescriptor.member, callback);
 };
 
 TileMutationMongoHandler.prototype.removeTileMember = function(processor, memberDescriptor, callback) {

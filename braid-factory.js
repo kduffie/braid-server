@@ -1,3 +1,7 @@
+if (typeof require !== 'undefined') {
+	var BraidAddress = require('./braid-address').BraidAddress;
+}
+
 var messageId = Math.floor(Math.random() * 20) * 100 + 1;
 
 function BraidFactory() {
@@ -248,7 +252,7 @@ BraidFactory.prototype.newTileMutationListRequest = function(to, from, tileId, s
 	return message;
 };
 
-BraidFactory.prototype.newTileMutationListReply = function(requestMessage, to, from, tileId, mutationDescriptors) {
+BraidFactory.prototype.newTileMutationReply = function(requestMessage, to, from, tileId, mutationDescriptors) {
 	var message = this.newReply(requestMessage, from, to);
 	message.data = {
 		tileId : tileId,
@@ -257,7 +261,7 @@ BraidFactory.prototype.newTileMutationListReply = function(requestMessage, to, f
 	return message;
 };
 
-BraidFactory.prototype.newTileInventoryListRequest = function(to, from, summaries) {
+BraidFactory.prototype.newTileInventoryRequest = function(to, from, summaries) {
 	var message = this.newRequest("tile-inventory", to, from);
 	message.data = {
 		summaries : summaries
@@ -265,8 +269,8 @@ BraidFactory.prototype.newTileInventoryListRequest = function(to, from, summarie
 	return message;
 };
 
-BraidFactory.prototype.newTileInventoryListReply = function(requestMessage, from, mismatchedTileSummaries, missingTileInfos, upgradeAppDescriptors) {
-	var message = this.newReply(requestMessage, from, to);
+BraidFactory.prototype.newTileInventoryReply = function(requestMessage, from, mismatchedTileSummaries, missingTileInfos, upgradeAppDescriptors) {
+	var message = this.newReply(requestMessage, from);
 	message.data = {
 		mismatchedTiles : mismatchedTileSummaries,
 		missingTiles : missingTileInfos,
@@ -344,6 +348,7 @@ BraidFactory.prototype.newTileSummary = function(tileId, appId, appVersion, muta
 	if (remoteMutation) {
 		result.remoteMutation = remoteMutation;
 	}
+	return result;
 };
 
 BraidFactory.prototype.newTileSummaryFromTileRecord = function(record, remoteMutation) {
@@ -399,9 +404,9 @@ BraidFactory.prototype.newTileMutation = function(tileId, mutationId, created, o
 	};
 };
 
-BraidFactory.prototype.newTileMutationMemberValue = function(memberBrid) {
+BraidFactory.prototype.newTileMutationMemberValue = function(address) {
 	return {
-		member : memberBrid
+		member : address
 	};
 };
 
@@ -419,14 +424,15 @@ BraidFactory.prototype.newTileMutationDeletePropertyValue = function(name, type,
 	};
 };
 
-BraidFactory.prototype.newTileMutationAddMember = function(mutation, memberBrid) {
-	mutation.action = 'add-member';
-	mutation.value = this.newTileMutationMemberValue(memberBrid);
+BraidFactory.prototype.newTileMutationAddMember = function(mutation, address) {
+	var bareAddress = new BraidAddress(address.userId, address.domain);
+	mutation.action = 'member-add';
+	mutation.value = this.newTileMutationMemberValue(bareAddress);
 	return mutation;
 };
 
 BraidFactory.prototype.newTileMutationRemoveMember = function(mutation, memberBrid) {
-	mutation.action = 'remove-member';
+	mutation.action = 'member-remove';
 	mutation.value = this.newTileMutationMemberValue(memberBrid);
 	return mutation;
 };
