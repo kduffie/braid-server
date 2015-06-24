@@ -128,6 +128,24 @@ BotManager.prototype.handleTileMutation = function(message, to) {
 	}
 };
 
+BotManager.prototype.handleTileAccept = function(message, to) {
+	// A tile-accept will only be processed if it is directly to the bot. In that case, it will
+	// check to see if the caller is a member of the tile, or already has this tile. In either case
+	// the request will be accepted and the mutations will be delivered to the caller.
+
+	if (!to || to.resource !== BOT_RESOURCE) {
+		return;
+	}
+
+	this.braidDb.findTileById(message.data.tileId, function(err, tileRecord) {
+		if (err) {
+			console.error("Failure getting tile", err);
+			return;
+		}
+		if (tileRecord.)
+	}.bind(this));
+};
+
 BotManager.prototype.handlePing = function(message, to) {
 	var reply = this.factory.newReply(message, this.createProxyAddress(to.userId));
 	this.sendMessage(reply);
@@ -153,6 +171,9 @@ BotManager.prototype.handleMessage = function(message, to, isDirected) {
 					break;
 				case 'tile-mutation':
 					this.handleTileMutation(message, to);
+					break;
+				case 'tile-accept':
+					this.handleTileAccept(message, to);
 					break;
 				}
 				break;
