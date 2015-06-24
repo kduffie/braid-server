@@ -9,6 +9,7 @@ function resolveServer(domain, callback) {
 		var port = domain.substring(index + 1);
 		console.log("Resolving domain server based on development mode domain: " + domain);
 		callback(null, "ws://localhost:" + port + "/braid-federation");
+		return;
 	}
 
 	dns.resolveSrv('_braid-server._tcp.' + domain, function onLookup(err, addresses) {

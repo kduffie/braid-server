@@ -221,7 +221,7 @@ BraidClient.prototype.onSocketMessage = function(event) {
 		console.log("Invalid message received", messageString, err);
 		return;
 	}
-	console.log(this.userId + " RX", message);
+	// console.log(this.userId + " RX", message);
 	if (message.id && (message.type === 'reply' || message.type === 'error')) {
 		var pendingCallback = this.pendingRequests[message.id];
 		if (pendingCallback) {
@@ -349,17 +349,17 @@ BraidClient.prototype.sendRequest = function(requestMessage, callback) {
 			cb(this.userId + ": Request timeout");
 		}
 	}.bind(this), 15000);
-	console.log(this.userId + ": REQUEST", requestMessage);
+	// console.log(this.userId + ": REQUEST", requestMessage);
 	this.socket.send(JSON.stringify(requestMessage));
 };
 
 BraidClient.prototype.sendCast = function(castMessage) {
-	console.log(this.userId + ": CAST", castMessage);
+	// console.log(this.userId + ": CAST", castMessage);
 	this.socket.send(JSON.stringify(castMessage));
 };
 
 BraidClient.prototype.sendReply = function(replyMessage) {
-	console.log(this.userId + ": REPLY", replyMessage);
+	// console.log(this.userId + ": REPLY", replyMessage);
 	this.socket.send(JSON.stringify(replyMessage));
 };
 
