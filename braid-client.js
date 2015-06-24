@@ -213,7 +213,7 @@ BraidClient.prototype.dumpRoster = function(event) {
 };
 
 BraidClient.prototype.onSocketMessage = function(event) {
-	var messageString = isWebClient ? event : event.data;
+	var messageString = isWebClient ? event.data : event;
 	var message;
 	try {
 		message = JSON.parse(messageString);
