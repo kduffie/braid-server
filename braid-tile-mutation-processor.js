@@ -203,7 +203,14 @@ TileMutationProcessor.prototype.applyMutation = function(mutation, latestApplied
 			if (err) {
 				throw err;
 			}
-			this.performMutation(mutation, callback);
+			var summaryInfo = factory.newTileRecordSummaryInfo(mutation.index + 1, mutation.stateHash, mutation.mutationId, mutation.created,
+					mutation.originator);
+			this.handlers.updateTileSummaryInfo(this, summaryInfo, function(err) {
+				if (err) {
+					throw err;
+				}
+				this.performMutation(mutation, callback);
+			}.bind(this));
 		}.bind(this));
 	}.bind(this));
 };
@@ -249,48 +256,62 @@ TileMutationProcessor.prototype.performMutation = function(mutation, callback) {
 
 TileMutationProcessor.prototype.rollbackMutation = function(mutation, callback) {
 	this.handlers.unsaveMutation(this, mutation, function() {
-		switch (mutation.action) {
-		case 'member-add':
-			this.handlers.removeTileMember(this, mutation.value, callback);
-			break;
-		case 'member-remove':
-			this.handlers.addTileMember(this, mutation.value, callback);
-			break;
-		case 'property-set':
-			if (mutation.previousValue) {
-				this.handlers.setTileProperty(this, mutation.previousValue, callback);
-			} else {
-				this.handlers.deleteTileProperty(this, mutation.value.name, callback);
+		this.handlers.getLatestMutation(this, function(err, latestMutation) {
+			if (err) {
+				throw err;
 			}
-			break;
-		case 'record-set':
-			if (mutation.previousValue) {
-				this.handlers.setTileRecord(this, mutation.previousValue, callback);
+			var summaryInfo;
+			if (latestMutation) {
+				summaryInfo = factory.newTileRecordSummaryInfo(latestMutation.index + 1, latestMutation.stateHash, latestMutation.created,
+						latestMutation.originator);
 			} else {
-				this.handlers.deleteTileRecord(this, mutation.value, callback);
+				summaryInfo = factory.newTileRecordSummaryInfo(0, 0, null, 0, null);
 			}
-			break;
-		case 'record-reorder':
-			this.handlers.reorderTileRecord(this, mutation.previousValue, callback);
-			break;
-		case 'record-delete':
-			this.handlers.setTileRecord(this, mutation.previousValue, callback);
-			break;
-		case 'file-set':
-			if (mutation.previousValue) {
-				this.handlers.setTileFile(this, mutation.previousValue, callback);
-			} else {
-				this.handlers.deleteTileFile(this, mutation.value, callback);
-			}
-			break;
-		case 'file-delete':
-			this.handlers.setTileFile(this, mutation.previousValue, callback);
-			break;
-		default:
-			console.error("Unhandled mutation action '" + mutation.action + "'");
-			callback();
-			break;
-		}
+			this.handlers.updateTileSummaryInfo(this, summaryInfo, function() {
+				switch (mutation.action) {
+				case 'member-add':
+					this.handlers.removeTileMember(this, mutation.value, callback);
+					break;
+				case 'member-remove':
+					this.handlers.addTileMember(this, mutation.value, callback);
+					break;
+				case 'property-set':
+					if (mutation.previousValue) {
+						this.handlers.setTileProperty(this, mutation.previousValue, callback);
+					} else {
+						this.handlers.deleteTileProperty(this, mutation.value.name, callback);
+					}
+					break;
+				case 'record-set':
+					if (mutation.previousValue) {
+						this.handlers.setTileRecord(this, mutation.previousValue, callback);
+					} else {
+						this.handlers.deleteTileRecord(this, mutation.value, callback);
+					}
+					break;
+				case 'record-reorder':
+					this.handlers.reorderTileRecord(this, mutation.previousValue, callback);
+					break;
+				case 'record-delete':
+					this.handlers.setTileRecord(this, mutation.previousValue, callback);
+					break;
+				case 'file-set':
+					if (mutation.previousValue) {
+						this.handlers.setTileFile(this, mutation.previousValue, callback);
+					} else {
+						this.handlers.deleteTileFile(this, mutation.value, callback);
+					}
+					break;
+				case 'file-delete':
+					this.handlers.setTileFile(this, mutation.previousValue, callback);
+					break;
+				default:
+					console.error("Unhandled mutation action '" + mutation.action + "'");
+					callback();
+					break;
+				}
+			}.bind(this));
+		}.bind(this));
 	}.bind(this));
 };
 

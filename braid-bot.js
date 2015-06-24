@@ -68,7 +68,8 @@ BotManager.prototype.handleTileShare = function(message) {
 			} else if (!record) {
 				// We don't yet have this tile. So we'll save the tile and
 				// issue a tile-accept to get them to send us the mutations for it.
-				var record = this.factory.newTileRecordFromInfo(message.data);
+				var summaryInfo = this.factory.newTileRecordSummaryInfo(0, 0, null, 0, null);
+				var record = this.factory.newTileRecordFromInfo(message.data, summaryInfo);
 				this.braidDb.insertTile(record, function(err) {
 					if (err) {
 						console.error("Failure inserting tile", err);
@@ -125,7 +126,7 @@ BotManager.prototype.handleTileMutation = function(message, to) {
 							}
 						} else {
 							var mutationRecord = this.factory.newMutationRecord(message.data.tileId, message.data.mutationId, message.data.created,
-									message.data.originator, message.data.action, message.data.value, message.data.fileId, 0, null, false);
+									message.data.originator, message.data.action, message.data.value, message.data.fileId, 0, null, false, 0);
 							this.braidDb.insertMutation(mutationRecord, function(err) {
 								if (err) {
 									console.error("Failure inserting mutation into db", err);
@@ -219,52 +220,107 @@ BotManager.prototype.processAccept = function(tileRecord, message, to) {
 	}.bind(this));
 };
 
+BotManager.prototype.handleTileInventoryRequest = function(message, to) {
+	// Someone has sent me a tile inventory request. I'm going to find all of the tiles I share with them
+	// and compare what I find with what they report in their request and generate a set of deltas that
+	// go into the response
+
+	// Remember that the bot is acting on behalf of a user. So we need to compare against the set of tiles
+	// that the targeted user conceptually has (based on userTile records).
+
+	// First find all of the tile records whose membership includes the requester
+
+	this.braidDb.findTilesByMember(message.from, function(err, tileRecords) {
+		if (err) {
+			this.sendMessage(this.factory.newErrorReply(message, 500, "Internal failure: " + err),
+					new BraidAddress(to.userId, this.config.domain, BOT_RESOURCE));
+		} else {
+			var missingTiles = [];
+			var mismatchedTiles = [];
+			async.each(tileRecords, function(tileRecord, callback) {
+				// First, we need to see if the targeted user actually has this tile
+				this.braidDb.findUserTile(to.userId, tileRecord.tileId, function(err, userTileRecord) {
+					if (err) {
+						console.error("Failure getting user tile", err);
+						callback(err);
+					} else if (record) {
+						// Targeted user does have this tile. So we need to put it into the correct list
+						// based on comparing with what we see in the request, if anything, for this tile
+						var matchingSummary;
+						for (var i = 0; i < message.data.summaries.length; i++) {
+							if (message.data.summaries[i].tileId === tileRecord.tileId) {
+								matchingSummary = message.data.summaries[i];
+								break;
+							}
+						}
+						if (matchingSummary) {
+							// Found a tile they have with same tileId, so we'll compare to see if and how
+							// to populate our response
+							if (matchingSummary.stateHash == tileRecord.summaryInfo.stateHash
+									&& matchingSummary.mutationCount == tileRecord.summary.mutationCount) {
+								// Perfect match, so it doesn't belong anywhere in our response
+								callback();
+							} else {
+								// We both have the tile, but they don't match. We're going to declare this
+								// a mismatch, and will provide some extra information
+								if (matchingSummary.latestMutation) {
+									this.braidDb.findMutation(this.tileId, matchingSummary.latestMutation.mutationId,
+											function(err, remoteLatestMutationRecord) {
+												if (err) {
+													callback(err);
+												} else if (remoteLatestMutationRecord) {
+													// We have this mutation which is their latest
+													var match = remoteLatestMutationRecord.index === matchingSummary.mutationCount - 1
+															&& remoteLatestMutationRecord.stateHash === matchingSummary.stateHash;
+													var mismatchSummary = this.factory.newTileSummary(tileRecord.tileId, tileRecord.appId,
+															tileRecord.appVersion, tileRecord.summaryInfo.mutationCount, tileRecord.summaryInfo.stateHash,
+															tileRecord.summaryInfo.latestMutation, this.factory.newRemoteMutationSummary(true, match));
+													mismatchedTiles.push(mismatchSummary);
+													callback();
+												} else {
+													// We don't have their latest mutation
+													var mismatchSummary = this.factory.newTileSummary(tileRecord.tileId, tileRecord.appId,
+															tileRecord.appVersion, tileRecord.summaryInfo.mutationCount, tileRecord.summaryInfo.stateHash,
+															tileRecord.summaryInfo.latestMutation, this.factory.newRemoteMutationSummary(false, false));
+													mismatchedTiles.push(mismatchSummary);
+													callback();
+												}
+											}.bind(this));
+								} else {
+									if (tileRecord.summaryInfo.mutationCount === 0) {
+										// Neither of us has any mutations, so they match. Nothing to report
+									} else {
+										// We have mutations. They don't. So we report a mismatch
+										var mismatchSummary = this.factory.newTileSummary(tileRecord.tileId, tileRecord.appId, tileRecord.appVersion,
+												tileRecord.summaryInfo.mutationCount, tileRecord.summaryInfo.stateHash, tileRecord.summaryInfo.latestMutation,
+												this.factory.newRemoteMutationSummary(false, false));
+										mismatchedTiles.push(mismatchSummary);
+									}
+									callback();
+								}
+							}
+						} else {
+							// Not found, so we will add it to the missing list
+							missingTiles.push(this.factory.newTileSummaryFromTileRecord(tileRecord));
+							callback();
+						}
+					} else {
+						callback();
+					}
+				});
+			}.bind(this), function(err) {
+				// All records have been reviewed. Now we assemble our response
+				var reply = this.factory.newTileInventoryListReply(message, new BraidAddress(to.userId, this.config.domain, BOT_RESOURCE), mismatchedTiles,
+						missingTiles, []);
+				this.sendMessage(reply);
+			}.bind(this));
+		}
+	}.bind(this));
+};
+
 BotManager.prototype.handlePing = function(message, to) {
 	var reply = this.factory.newReply(message, this.createProxyAddress(to.userId));
 	this.sendMessage(reply);
-};
-
-BotManager.prototype.handleMessage = function(message, to, isDirected) {
-	this.authServer.getUserRecord(to.userId, function(err, userRecord) {
-		if (err) {
-			console.warn("braid-client-bot: error getting user record", err);
-		} else if (userRecord) {
-			switch (message.type) {
-			case 'request':
-				switch (message.request) {
-				case 'ping':
-					this.handlePing(message, to);
-					break;
-				case 'tile-accept':
-					this.handleTileAccept(message, to);
-					break;
-				default:
-					if (isDirected) {
-						this.sendMessage(this.factory.newErrorReply(message, 406, "This request type is not supported", new BraidAddress(to.userId,
-								this.config.domain, BOT_RESOURCE)));
-					}
-					break;
-				}
-				break;
-			case 'cast':
-				switch (message.request) {
-				case 'tile-share':
-					this.handleTileShare(message, to);
-					break;
-				case 'tile-mutation':
-					this.handleTileMutation(message, to);
-					break;
-				}
-				break;
-			case 'reply':
-				break;
-			case 'error':
-				break;
-			}
-		} else {
-			console.warn("braid-client-bot: ignoring message sent to non-existent user: " + to.userId);
-		}
-	}.bind(this));
 };
 
 BotManager.prototype.messageHandler = function(message) {
@@ -302,6 +358,54 @@ BotManager.prototype.messageHandler = function(message) {
 			return;
 		}
 	}
+};
+
+BotManager.prototype.handleMessage = function(message, to, isDirected) {
+	this.authServer.getUserRecord(to.userId, function(err, userRecord) {
+		if (err) {
+			console.warn("braid-client-bot: error getting user record", err);
+		} else if (userRecord) {
+			switch (message.type) {
+			case 'request':
+				switch (message.request) {
+				case 'ping':
+					this.handlePing(message, to);
+					break;
+				case 'tile-accept':
+					this.handleTileAccept(message, to);
+					break;
+				case 'tile-inventory':
+					if (isDirected) {
+						this.handleTileInventoryRequest(message, to);
+					}
+					break;
+				default:
+					if (isDirected) {
+						this.sendMessage(this.factory.newErrorReply(message, 406, "This request type is not supported", new BraidAddress(to.userId,
+								this.config.domain, BOT_RESOURCE)));
+					}
+					break;
+				}
+				break;
+			case 'cast':
+				switch (message.request) {
+				case 'tile-share':
+					this.handleTileShare(message, to);
+					break;
+				case 'tile-mutation':
+					this.handleTileMutation(message, to);
+					break;
+				}
+				break;
+			case 'reply':
+				break;
+			case 'error':
+				break;
+			}
+		} else {
+			console.warn("braid-client-bot: ignoring message sent to non-existent user: " + to.userId);
+		}
+	}.bind(this));
 };
 
 BotManager.prototype.handleOnFileMissing = function(tileId, mutation) {
