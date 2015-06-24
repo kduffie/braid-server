@@ -79,7 +79,7 @@ BotManager.prototype.handleTileShare = function(message) {
 							if (err) {
 								console.error("Failure inserting tile", err);
 							} else {
-								var acceptMessage = this.factory.newTileAcceptMessage(message.from, this.createProxyAddress(message.from.userId),
+								var acceptMessage = this.factory.newTileAcceptRequest(message.from, this.createProxyAddress(message.from.userId),
 										message.data.tileId);
 								this.sendMessage(acceptMessage);
 							}
@@ -118,9 +118,22 @@ BotManager.prototype.handleTileMutation = function(message, to) {
 				this.braidDb.findMutation(message.data.tileId, message.data.mutationId, function(err, mutationRecord) {
 					if (err) {
 						console.err("Failure finding mutation", err);
-					} else if (!mutationRecord || !mutationRecord.integrated) {
-						console.log("braid-bot:  Received mutation to be integrated", message.data);
-						this.processMutation(tileRecord, message.data);
+					} else {
+						if (mutationRecord) {
+							if (!mutationRecord.integrated) {
+								this.processMutation(tileRecord, message.data);
+							}
+						} else {
+							var mutationRecord = this.factory.newMutationRecord(message.data.tileId, message.data.mutationId, message.data.created,
+									message.data.originator, message.data.action, message.data.value, message.data.fileId, null, false);
+							this.braidDb.insertMutation(mutationRecord, function(err) {
+								if (err) {
+									console.error("Failure inserting mutation into db", err);
+								} else {
+									this.processMutation(tileRecord, message.data);
+								}
+							}.bind(this));
+						}
 					}
 				}.bind(this));
 			}
@@ -140,9 +153,69 @@ BotManager.prototype.handleTileAccept = function(message, to) {
 	this.braidDb.findTileById(message.data.tileId, function(err, tileRecord) {
 		if (err) {
 			console.error("Failure getting tile", err);
+			this.sendMessage(this.factory.newErrorReply(message, 500, "Internal db failure: " + err, new BraidAddress(to.userId, this.config.domain,
+					BOT_RESOURCE)));
 			return;
 		}
-		if (tileRecord.)
+		if (!tileRecord) {
+			console.warn("Received tile-accept for missing tile", message);
+			var errorReply = this.factory.newErrorReply(message, 404, "No such tile", new BraidAddress(to.userId, this.config.domain, BOT_RESOURCE));
+			this.sendMessage(errorReply);
+			return;
+		}
+		var isMember = false;
+		for (var i = 0; i < tileRecord.members.length; i++) {
+			var member = tileRecord.members[i];
+			if (message.from.userId === member.userId && message.from.domain === member.domain) {
+				isMember = true;
+				break;
+			}
+		}
+		if (isMember) {
+			this.processAccept(tileRecord, message);
+		} else if (message.from.domain === this.config.domain) {
+			// Not a member. But perhaps already owns this tile?
+			this.braidDb.findUserTile(message.from.userId, message.data.tileId, function(err, userTileRecord) {
+				if (err) {
+					console.error("Failure getting tile", err);
+					this.sendMessage(this.factory.newErrorReply(message, 500, "Internal db failure: " + err, new BraidAddress(to.userId, this.config.domain,
+							BOT_RESOURCE)));
+					return;
+				}
+				if (!userTileRecord) {
+					this.sendMessage(this.factory.newErrorReply(message, 401, "Not authorized to access tile", new BraidAddress(to.userId, this.config.domain,
+							BOT_RESOURCE)));
+					return;
+				}
+				this.processAccept(tileRecord, message, to);
+			}.bind(this));
+		} else {
+			// Not in my domain, so return an error
+			this.sendMessage(this.factory.newErrorReply(message, 401, "Not authorized to access tile", new BraidAddress(to.userId, this.config.domain,
+					BOT_RESOURCE)));
+		}
+	}.bind(this));
+};
+
+BotManager.prototype.processAccept = function(tileRecord, message, to) {
+	this.braidDb.countMutations(tileRecord.tileId, function(err, mutationCount) {
+		this.sendMessage(this.factory.newTileAcceptReply(message, tileRecord.tileId, mutationCount, new BraidAddress(to.userId, this.config.domain,
+				BOT_RESOURCE)));
+		this.braidDb.iterateMutations(tileRecord.tileId, false, function(err, cursor) {
+			if (err) {
+				console.error("Failure while iterating tile records", err);
+			} else {
+				cursor.forEach(function(mutationRecord) {
+					var mutationMessage = this.factory.newTileMutationMessage(message.from, new BraidAddress(to.userId, this.config.domain, BOT_RESOURCE),
+							mutationRecord);
+					this.sendMessage(mutationMessage);
+				}.bind(this), function(err) {
+					if (err) {
+						console.error("Failure walking tile records", err);
+					}
+				}.bind(this));
+			}
+		}.bind(this));
 	}.bind(this));
 };
 
@@ -162,6 +235,15 @@ BotManager.prototype.handleMessage = function(message, to, isDirected) {
 				case 'ping':
 					this.handlePing(message, to);
 					break;
+				case 'tile-accept':
+					this.handleTileAccept(message, to);
+					break;
+				default:
+					if (isDirected) {
+						this.sendMessage(this.factory.newErrorReply(message, 406, "This request type is not supported", new BraidAddress(to.userId,
+								this.config.domain, BOT_RESOURCE)));
+					}
+					break;
 				}
 				break;
 			case 'cast':
@@ -171,9 +253,6 @@ BotManager.prototype.handleMessage = function(message, to, isDirected) {
 					break;
 				case 'tile-mutation':
 					this.handleTileMutation(message, to);
-					break;
-				case 'tile-accept':
-					this.handleTileAccept(message, to);
 					break;
 				}
 				break;

@@ -291,7 +291,7 @@ BraidDb.prototype.insertMutation = function(record, callback) {
 };
 
 BraidDb.prototype.findMutation = function(tileId, mutationId, callback /* (err, record) */) {
-	this.userTiles.findOne({
+	this.mutations.findOne({
 		tileId : tileId,
 		mutationId : mutationId
 	}, callback);
@@ -345,6 +345,13 @@ BraidDb.prototype.decrementTilePendingMutations = function(tileId, callback) {
 	}, callback);
 };
 
+BraidDb.prototype.countMutations = function(tileId, callback /* (err, count) */) {
+	var cursor = this.mutations.find({
+		tileId : tileId,
+		integrated : true
+	}).count(false, {}, callback);
+};
+
 BraidDb.prototype.iterateMutations = function(tileId, reverseChronological, callback /* (err, cursor) */) {
 	var sort;
 	if (reverseChronological) {
@@ -352,7 +359,7 @@ BraidDb.prototype.iterateMutations = function(tileId, reverseChronological, call
 	} else {
 		sort = this.mutationForwardSort;
 	}
-	var cursor = this.mutationCollection.find({
+	var cursor = this.mutations.find({
 		tileId : tileId,
 		integrated : true
 	}).sort(sort);
@@ -360,7 +367,7 @@ BraidDb.prototype.iterateMutations = function(tileId, reverseChronological, call
 };
 
 BraidDb.prototype.setTileIntegrated = function(tileId, mutationId, integrated, callback) {
-	this.tiles.update({
+	this.mutations.update({
 		tileId : tileId,
 		mutationId : mutationId
 	}, {

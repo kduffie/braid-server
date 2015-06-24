@@ -88,11 +88,25 @@ describe("bot:", function() {
 				services.braidDb.getTileProperty('t3', 'property1', function(err, record) {
 					assert(!err);
 					assert(record);
-					console.log("record: ", record);
 					assert.equal(record.value, 'hello');
-					done();
+					console.log("Property mutation was properly applied");
+					// Now we're going to issue a tile-accept from the originator and see if we get back a proper reply followed by
+					// the mutations
+					var tileAccept = factory.newTileAcceptRequest(new BraidAddress('joe', 'test.com', '!bot'), new BraidAddress('joe', 'test.com', 'abcdef'),
+							't3');
+					services.messageSwitch.waitForMessages(2, 2000, function(err, messages) {
+						assert(!err);
+						assert.equal(messages.length, 2);
+						assert.equal(messages[0].type, 'reply');
+						assert.equal(messages[1].type, 'cast');
+						assert.equal(messages[1].request, 'tile-mutation');
+						assert.equal(messages[1].data.tileId, 't3');
+						assert.equal(messages[1].data.mutationId, 'm1');
+						done();
+					});
+					botMsgHandler(tileAccept);
 				});
-			}, 500);
+			}, 1000);
 		});
 		botMsgHandler(tileShare);
 	});
