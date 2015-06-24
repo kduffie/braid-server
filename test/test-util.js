@@ -1,9 +1,11 @@
-var MONGO_URL = "mongodb://localhost:27017/{domain}";
+var MONGO_URL = "mongodb://localhost:27017/braid_{domain}";
 var factory = require('../braid-factory');
 var BraidDb = require('../braid-db');
 var EventBus = require('../braid-event-bus');
 var MessageSwitch = require('../braid-message-switch');
 var AuthServer = require('../braid-auth').AuthServer;
+var MessageSwitchStub = require('./stubs/braid-message-switch-stub');
+var AuthServerStub = require('./stubs/braid-auth-stub');
 
 function createTestServices(config, callback) {
 	var braidDb = new BraidDb(config);
@@ -22,6 +24,29 @@ function createTestServices(config, callback) {
 			messageSwitch : messageSwitch,
 			authServer : authServer
 		};
+		callback(null, services);
+	});
+}
+
+function createTestServicesWithStubs(config, callback) {
+	var braidDb = new BraidDb(config);
+	braidDb.initialize(config, function(err) {
+		if (err) {
+			console.log("Error opening mongo.  Are you running mongo?");
+			throw "Mongo error: " + err;
+		}
+		var eventBus = new EventBus();
+		var messageSwitch = new MessageSwitchStub();
+		var authServer = new AuthServerStub();
+		var services = {
+			factory : factory,
+			braidDb : braidDb,
+			eventBus : eventBus,
+			messageSwitch : messageSwitch,
+			authServer : authServer
+		};
+		messageSwitch.initialize(config, services);
+		authServer.initialize(config, services);
 		callback(null, services);
 	});
 }
@@ -68,5 +93,6 @@ function createTestConfig(domain, clientPort, serverPort) {
 
 module.exports = {
 	createTestConfig : createTestConfig,
-	createTestServices : createTestServices
+	createTestServices : createTestServices,
+	createTestServicesWithStubs : createTestServicesWithStubs
 };

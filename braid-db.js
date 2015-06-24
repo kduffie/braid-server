@@ -123,7 +123,7 @@ BraidDb.prototype._setupTiles = function(callback) {
 };
 
 BraidDb.prototype._setupUserTiles = function(callback) {
-	this.userTiles = this.db.collection("user-tiles");
+	this.userTiles = this.db.collection("user_tiles");
 	this.userTiles.ensureIndex({
 		userId : 1,
 		tileId : 1
@@ -192,7 +192,7 @@ BraidDb.prototype._setupFiles = function(callback) {
 };
 
 BraidDb.prototype._setupTileProperties = function(callback) {
-	this.tileProperties = this.db.collection("tile-properties");
+	this.tileProperties = this.db.collection("tile_properties");
 	this.tileProperties.ensureIndex({
 		tileId : 1,
 		name : 1
@@ -268,8 +268,6 @@ BraidDb.prototype.insertTile = function(record, callback) {
 BraidDb.prototype.findTileById = function(tileId, callback /* (err, record) */) {
 	this.tiles.findOne({
 		tileId : tileId
-	}, {
-		w : 1
 	}, callback);
 };
 
@@ -283,8 +281,6 @@ BraidDb.prototype.findUserTile = function(userId, tileId, callback /* (err, reco
 	this.userTiles.findOne({
 		userId : userId,
 		tileId : tileId
-	}, {
-		w : 1
 	}, callback);
 };
 
@@ -295,11 +291,9 @@ BraidDb.prototype.insertMutation = function(record, callback) {
 };
 
 BraidDb.prototype.findMutation = function(tileId, mutationId, callback /* (err, record) */) {
-	this.userTiles.findOne({
+	this.mutations.findOne({
 		tileId : tileId,
 		mutationId : mutationId
-	}, {
-		w : 1
 	}, callback);
 };
 
@@ -351,6 +345,13 @@ BraidDb.prototype.decrementTilePendingMutations = function(tileId, callback) {
 	}, callback);
 };
 
+BraidDb.prototype.countMutations = function(tileId, callback /* (err, count) */) {
+	var cursor = this.mutations.find({
+		tileId : tileId,
+		integrated : true
+	}).count(false, {}, callback);
+};
+
 BraidDb.prototype.iterateMutations = function(tileId, reverseChronological, callback /* (err, cursor) */) {
 	var sort;
 	if (reverseChronological) {
@@ -358,7 +359,7 @@ BraidDb.prototype.iterateMutations = function(tileId, reverseChronological, call
 	} else {
 		sort = this.mutationForwardSort;
 	}
-	var cursor = this.mutationCollection.find({
+	var cursor = this.mutations.find({
 		tileId : tileId,
 		integrated : true
 	}).sort(sort);
@@ -366,7 +367,7 @@ BraidDb.prototype.iterateMutations = function(tileId, reverseChronological, call
 };
 
 BraidDb.prototype.setTileIntegrated = function(tileId, mutationId, integrated, callback) {
-	this.tiles.update({
+	this.mutations.update({
 		tileId : tileId,
 		mutationId : mutationId
 	}, {
@@ -424,8 +425,6 @@ BraidDb.prototype.getTileProperty = function(tileId, propertyName, callback /* (
 	this.tileProperties.findOne({
 		tileId : tileId,
 		name : propertyName
-	}, {
-		w : 1
 	}, callback);
 };
 
