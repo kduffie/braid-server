@@ -69,7 +69,7 @@ TileMutationMongoHandler.prototype.onFileMissing = function(processor, mutation)
 };
 
 TileMutationMongoHandler.prototype.saveMutation = function(processor, mutation, callback) {
-	this.braidDb.updateMutationState(mutation.tileId, mutation.mutationId, mutation.stateHash, mutation.integrated, callback);
+	this.braidDb.updateMutationState(mutation.tileId, mutation.mutationId, mutation.stateHash, true, callback);
 };
 
 TileMutationMongoHandler.prototype.unsaveMutation = function(processor, mutation, callback) {
