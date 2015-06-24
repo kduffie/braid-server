@@ -379,6 +379,20 @@ BraidDb.prototype.setTileIntegrated = function(tileId, mutationId, integrated, c
 	}, callback);
 };
 
+BraidDb.prototype.updateMutationState = function(tileId, mutationId, stateHash, integrated, callback) {
+	this.mutations.update({
+		tileId : tileId,
+		mutationId : mutationId
+	}, {
+		$set : {
+			stateHash : stateHash,
+			integrated : integrated
+		}
+	}, {
+		w : 1
+	}, callback);
+};
+
 BraidDb.prototype.addTileMember = function(processor, memberDescriptor, callback) {
 	this.tiles.update({
 		tileId : processor.tileId

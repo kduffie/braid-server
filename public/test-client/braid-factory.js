@@ -546,7 +546,7 @@ BraidFactory.prototype.newUserTileRecord = function(userId, tileId) {
 	};
 };
 
-BraidFactory.prototype.newMutationRecord = function(tileId, mutationId, created, originator, action, value, fileId, previousValue, integrated) {
+BraidFactory.prototype.newMutationRecord = function(tileId, mutationId, created, originator, action, value, fileId, stateHash, previousValue, integrated) {
 	return {
 		tileId : tileId,
 		mutationId : mutationId,
@@ -555,6 +555,7 @@ BraidFactory.prototype.newMutationRecord = function(tileId, mutationId, created,
 		action : action,
 		value : value,
 		fileId : fileId,
+		stateHash : stateHash,
 		previousValue : previousValue,
 		integrated : integrated
 	};

@@ -125,7 +125,7 @@ BotManager.prototype.handleTileMutation = function(message, to) {
 							}
 						} else {
 							var mutationRecord = this.factory.newMutationRecord(message.data.tileId, message.data.mutationId, message.data.created,
-									message.data.originator, message.data.action, message.data.value, message.data.fileId, null, false);
+									message.data.originator, message.data.action, message.data.value, message.data.fileId, 0, null, false);
 							this.braidDb.insertMutation(mutationRecord, function(err) {
 								if (err) {
 									console.error("Failure inserting mutation into db", err);
