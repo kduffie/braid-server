@@ -276,7 +276,7 @@ MessageSwitch.prototype.deliver = function(message, callback) {
 
 MessageSwitch.prototype.getStats = function() {
 	return this.stats;
-}
+};
 
 MessageSwitch.prototype.registerHook = function(handler) {
 	this.messageHooks.push(handler);

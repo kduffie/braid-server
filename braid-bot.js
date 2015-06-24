@@ -16,7 +16,7 @@ BotManager.prototype.initialize = function(config, services) {
 	this.braidDb = services.braidDb;
 	this.messageSwitch.registerHook(this.messageHandler.bind(this));
 	this.mutationProcessorsByTileId = {};
-	mutationHandler = new TileMutationMongoHandler({
+	this.mutationHandler = new TileMutationMongoHandler({
 		onFileMissing : this.handleOnFileMissing.bind(this),
 		onMutationsCompleted : this.handleOnMutationsCompleted.bind(this),
 	}, this.braidDb);
@@ -39,7 +39,7 @@ BotManager.prototype.handleTileShare = function(message) {
 	// If the share is not from our domain, then we won't be accepting, because
 	// it can have been shared by one of our users.
 
-	if (message.from.domain !== config.domain) {
+	if (message.from.domain !== this.config.domain) {
 		return;
 	}
 
@@ -47,12 +47,11 @@ BotManager.prototype.handleTileShare = function(message) {
 	// need to accept it once regardless, because when we accept from the
 	// same identity, it won't cause anyone to be added as a member.
 
-	boolean
-	ownShare = false;
+	var ownShare = false;
 
 	for (var i = 0; i < message.to.length; i++) {
 		var to = message.to[i];
-		if (message.from.userId === to.userId && to.domain === config.domain) {
+		if (message.from.userId === to.userId && to.domain === this.config.domain) {
 			ownShare = true;
 			break;
 		}
@@ -69,13 +68,22 @@ BotManager.prototype.handleTileShare = function(message) {
 			} else if (!record) {
 				// We don't yet have this tile. So we'll save the tile and
 				// issue a tile-accept to get them to send us the mutations for it.
-				var record = factory.newTileRecordFromInfo(message.data);
-				this.braidDb.insertUserTile(record, function(err) {
+				var record = this.factory.newTileRecordFromInfo(message.data);
+				this.braidDb.insertTile(record, function(err) {
 					if (err) {
 						console.error("Failure inserting tile", err);
 					} else {
-						var acceptMessage = factory.newTileAcceptMessage(message.from, createProxyAddress(message.from.userId), message.data.tileId);
-						sendMessage(acceptMessage);
+						// We also need a record that this user has this tile
+						var userRecord = this.factory.newUserTileRecord(message.from.userId, message.data.tileId);
+						this.braidDb.insertUserTile(userRecord, function(err) {
+							if (err) {
+								console.error("Failure inserting tile", err);
+							} else {
+								var acceptMessage = this.factory.newTileAcceptMessage(message.from, this.createProxyAddress(message.from.userId),
+										message.data.tileId);
+								this.sendMessage(acceptMessage);
+							}
+						}.bind(this));
 					}
 				}.bind(this));
 			}
@@ -86,10 +94,10 @@ BotManager.prototype.handleTileShare = function(message) {
 BotManager.prototype.processMutation = function(tileRecord, mutation) {
 	process.nextTick(function() {
 		// Find or create a tile mutation processor for the tile
-		var mp = mutationProcessorsByTileId[mutation.tileId];
+		var mp = this.mutationProcessorsByTileId[mutation.tileId];
 		if (!mp) {
-			mp = new TileMutationProcessor(mutation.tileId, tileRecord.mutationCount, tileMutationHandlers);
-			mutationProcessorsByTileId[mutation.tileId] = mp;
+			mp = new TileMutationProcessor(mutation.tileId, tileRecord.mutationCount, this.mutationHandler);
+			this.mutationProcessorsByTileId[mutation.tileId] = mp;
 		}
 		mp.addMutation(mutation);
 	}.bind(this));
@@ -110,9 +118,9 @@ BotManager.prototype.handleTileMutation = function(message, to) {
 				this.braidDb.findMutation(message.data.tileId, message.data.mutationId, function(err, mutationRecord) {
 					if (err) {
 						console.err("Failure finding mutation", err);
-					} else if (!record || !record.integrated) {
+					} else if (!mutationRecord || !mutationRecord.integrated) {
 						console.log("braid-bot:  Received mutation to be integrated", message.data);
-						processMutation(tileRecord, message.data);
+						this.processMutation(tileRecord, message.data);
 					}
 				}.bind(this));
 			}
@@ -141,10 +149,10 @@ BotManager.prototype.handleMessage = function(message, to, isDirected) {
 			case 'cast':
 				switch (message.request) {
 				case 'tile-share':
-					handleTileShare(message, to);
+					this.handleTileShare(message, to);
 					break;
 				case 'tile-mutation':
-					handleTileMutation(message, to);
+					this.handleTileMutation(message, to);
 					break;
 				}
 				break;

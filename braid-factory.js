@@ -204,16 +204,16 @@ BraidFactory.prototype.newTileAcceptMessage = function(to, from, tileId) {
 	return message;
 };
 
-BraidFactory.prototype.newTileMutationMessage = function(to, from, mutationRecord) {
+BraidFactory.prototype.newTileMutationMessage = function(to, from, mutation) {
 	var message = this.newCastMessage("tile-mutation", to, from);
 	message.data = {
-		tileId : mutationRecord.tileId,
-		mutationId : mutationRecord.mutationId,
-		created : mutationRecord.created,
-		originator : mutationRecord.originator,
-		action : mutationRecord.action,
-		value : mutationRecord.value,
-		fileId : mutationRecord.fileId
+		tileId : mutation.tileId,
+		mutationId : mutation.mutationId,
+		created : mutation.created,
+		originator : mutation.originator,
+		action : mutation.action,
+		value : mutation.value,
+		fileId : mutation.fileId
 	};
 	return message;
 };

@@ -9,7 +9,7 @@ var config1;
 var server2;
 var config2
 
-describe('blackbox: two servers', function() {
+describe('blackbox: federation', function() {
 	before(function(done) {
 		config1 = testUtil.createTestConfig('test.26001', 26000, 26001);
 		server1 = new BraidServer();

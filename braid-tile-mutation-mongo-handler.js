@@ -4,7 +4,7 @@ function TileMutationMongoHandler(manager, db) {
 }
 
 TileMutationMongoHandler.prototype.isMutationExists = function(processor, mutationId, callback /* (exists) */) {
-	this.braidDb.isMutationExists(processor.tileId, mutationId, true, callback);
+	this.braidDb.isMutationExists(processor.tileId, mutationId, true, false, callback);
 };
 
 TileMutationMongoHandler.prototype.getLatestMutation = function(processor, callback /* (err, mutation) */) {

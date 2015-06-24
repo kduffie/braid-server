@@ -79,7 +79,7 @@ TileMutationProcessor.prototype.processMutations = function() {
 			this.pendingMutations.shift();
 			this.onCycleComplete();
 		} else {
-			this.handlers.foobar(this, function(err, m) {
+			this.handlers.getLatestMutation(this, function(err, m) {
 				if (err) {
 					throw err;
 				} else {
