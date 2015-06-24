@@ -82,4 +82,34 @@ describe("bot: tile-inventory", function() {
 		});
 		botMsgHandler(tileShare);
 	});
+
+	it("inventory4: handles mismatched tile", function(done) {
+		var originator = new BraidAddress('joe', 'test.com', '12345');
+		var tileInfo = factory.newTileInfo('t4', 'app1', 1, 0, originator, 1000);
+		var tileShare = factory.newTileShareMessage(new BraidAddress('joe', 'test.com', '!bot'), originator, tileInfo);
+		services.messageSwitch.waitForMessage(1000, function(err, reply) {
+			assert(!err);
+			assert(reply.request, 'tile-accept');
+			var mutation = factory.newTileMutation('t4', 'm1', 100, originator);
+			mutation = factory.newTileMutationAddMember(mutation, originator);
+			var mutationMessage = factory.newTileMutationMessage(new BraidAddress('joe', 'test.com', '!bot'), originator, mutation);
+			botMsgHandler(mutationMessage);
+			// Now it is going to process the mutation. We need to wait briefly.
+			setTimeout(function() {
+				var summaries = [];
+				summaries.push(factory.newTileSummary('t4', 'app1', 1, 2, 23498, factory.newLatestMutationSummary('m2', 2500, originator)));
+				var request = factory.newTileInventoryRequest(new BraidAddress('joe', 'test.com', '!bot'), new BraidAddress('joe', 'test.com', 'abcdef'),
+						summaries);
+				services.messageSwitch.waitForMessage(1000, function(err, reply) {
+					assert(!err);
+					assert.equal(reply.data.mismatchedTiles.length, 1);
+					assert.equal(reply.data.mismatchedTiles[0].tileId, 't4');
+					done();
+				});
+				botMsgHandler(request);
+			}, 1000);
+		});
+		botMsgHandler(tileShare);
+	});
+
 });
