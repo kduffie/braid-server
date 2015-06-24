@@ -196,24 +196,33 @@ BraidFactory.prototype.newTileShareMessage = function(to, from, tileInfo) {
 	return message;
 };
 
-BraidFactory.prototype.newTileAcceptMessage = function(to, from, tileId) {
-	var message = this.newCastMessage("tile-accept", to, from);
+BraidFactory.prototype.newTileAcceptRequest = function(to, from, tileId) {
+	var message = this.newRequest("tile-accept", to, from);
 	message.data = {
 		tileId : tileId
 	};
 	return message;
 };
 
-BraidFactory.prototype.newTileMutationMessage = function(to, from, mutationRecord) {
+BraidFactory.prototype.newTileAcceptReply = function(requestMessage, tileId, mutationCount, from, to) {
+	var message = this.newReply(requestMessage, from, to);
+	message.data = {
+		tileId : tileId,
+		mutationCount : mutationCount
+	};
+	return message;
+};
+
+BraidFactory.prototype.newTileMutationMessage = function(to, from, mutation) {
 	var message = this.newCastMessage("tile-mutation", to, from);
 	message.data = {
-		tileId : mutationRecord.tileId,
-		mutationId : mutationRecord.mutationId,
-		created : mutationRecord.created,
-		originator : mutationRecord.originator,
-		action : mutationRecord.action,
-		value : mutationRecord.value,
-		fileId : mutationRecord.fileId
+		tileId : mutation.tileId,
+		mutationId : mutation.mutationId,
+		created : mutation.created,
+		originator : mutation.originator,
+		action : mutation.action,
+		value : mutation.value,
+		fileId : mutation.fileId
 	};
 	return message;
 };
