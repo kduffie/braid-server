@@ -33,15 +33,15 @@ BraidClient.prototype.connect = function(callback) {
 	this.connectCallback = callback;
 	this.socket = new WebSocket("ws://" + this.server + ":" + this.port + "/braid-client", []);
 	if (isWebClient) {
-		this.socket.on('open', this.onSocketOpen.bind(this));
-		this.socket.on('error', this.onSocketError.bind(this));
-		this.socket.on('message', this.onSocketMessage.bind(this));
-		this.socket.on('close', this.onSocketClosed.bind(this));
-	} else {
 		this.socket.onopen = this.onSocketOpen.bind(this);
 		this.socket.onerror = this.onSocketError.bind(this);
 		this.socket.onmessage = this.onSocketMessage.bind(this);
 		this.socket.onclose = this.onSocketClosed.bind(this);
+	} else {
+		this.socket.on('open', this.onSocketOpen.bind(this));
+		this.socket.on('error', this.onSocketError.bind(this));
+		this.socket.on('message', this.onSocketMessage.bind(this));
+		this.socket.on('close', this.onSocketClosed.bind(this));
 	}
 };
 
@@ -143,7 +143,7 @@ BraidClient.prototype.parseAddressEntry = function(value) {
 		value = parts[0];
 	}
 	parts = value.split("@");
-	var userId = value;
+	var userId = parts[0];
 	if (parts.length > 1) {
 		domain = parts[1];
 	}
@@ -213,7 +213,7 @@ BraidClient.prototype.dumpRoster = function(event) {
 };
 
 BraidClient.prototype.onSocketMessage = function(event) {
-	var messageString = isWebClient ? event : event.data;
+	var messageString = isWebClient ? event.data : event;
 	var message;
 	try {
 		message = JSON.parse(messageString);
