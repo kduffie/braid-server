@@ -23,6 +23,9 @@
 		"hello" : {
 		}
 	},
+	"bot" : {
+		"inventoryRequestDelay": 15000
+	},
 	"debug" : {
 		"messageSwitch": {
 			"logMessages" : false

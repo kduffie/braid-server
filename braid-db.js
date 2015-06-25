@@ -114,12 +114,25 @@ BraidDb.prototype._setupSubscriptions = function(callback) {
 
 BraidDb.prototype._setupTiles = function(callback) {
 	this.tiles = this.db.collection("tiles");
-	this.tiles.ensureIndex({
-		tileId : 1
-	}, {
-		unique : true,
-		w : 1
-	}, callback);
+	var steps = [];
+	steps.push(function(callback) {
+		this.tiles.ensureIndex({
+			tileId : 1
+		}, {
+			unique : true,
+			w : 1
+		}, callback);
+	}.bind(this));
+	steps.push(function(callback) {
+		this.tiles.ensureIndex({
+			"members.userId" : 1,
+			"members.domain" : 1
+		}, {
+			unique : false,
+			w : 1
+		}, callback);
+	}.bind(this));
+	async.parallel(steps, callback);
 };
 
 BraidDb.prototype._setupUserTiles = function(callback) {
@@ -150,7 +163,8 @@ BraidDb.prototype._setupMutations = function(callback) {
 		this.mutations.ensureIndex({
 			tileId : 1,
 			mutationId : 1,
-			integrated : 1
+			integrated : 1,
+			index : 1
 		}, {
 			unique : true,
 			w : 1
@@ -271,6 +285,17 @@ BraidDb.prototype.findTileById = function(tileId, callback /* (err, record) */) 
 	}, callback);
 };
 
+BraidDb.prototype.findTilesByMember = function(member, callback /* (err, records) */) {
+	this.tiles.find({
+		members : {
+			"$elemMatch" : {
+				userId : member.userId,
+				domain : member.domain
+			}
+		}
+	}).toArray(callback);
+};
+
 BraidDb.prototype.insertUserTile = function(record, callback) {
 	this.userTiles.insert(record, {
 		w : 1
@@ -366,6 +391,19 @@ BraidDb.prototype.iterateMutations = function(tileId, reverseChronological, call
 	callback(null, cursor);
 };
 
+BraidDb.prototype.iterateMutationsAfterIndex = function(tileId, index, callback /* (err, cursor) */) {
+	var sort;
+	sort = this.mutationForwardSort;
+	var cursor = this.mutations.find({
+		tileId : tileId,
+		integrated : true,
+		index : {
+			'$gt' : index
+		}
+	}).sort(sort);
+	callback(null, cursor);
+};
+
 BraidDb.prototype.setTileIntegrated = function(tileId, mutationId, integrated, callback) {
 	this.mutations.update({
 		tileId : tileId,
@@ -379,21 +417,48 @@ BraidDb.prototype.setTileIntegrated = function(tileId, mutationId, integrated, c
 	}, callback);
 };
 
-BraidDb.prototype.addTileMember = function(processor, memberDescriptor, callback) {
-	this.tiles.update({
-		tileId : processor.tileId
+BraidDb.prototype.updateMutationState = function(tileId, mutationId, stateHash, integrated, index, callback) {
+	this.mutations.update({
+		tileId : tileId,
+		mutationId : mutationId
 	}, {
-		$addToSet : {
-			members : memberDescriptor
+		$set : {
+			stateHash : stateHash,
+			integrated : integrated,
+			index : index
 		}
 	}, {
 		w : 1
 	}, callback);
 };
 
-BraidDb.prototype.removeTileMember = function(processor, memberDescriptor, callback) {
+BraidDb.prototype.updateTileSummaryInfo = function(tileId, summaryInfo, callback) {
+	this.tiles.update({
+		tileId : tileId
+	}, {
+		$set : {
+			summaryInfo : summaryInfo
+		}
+	}, {
+		w : 1
+	}, callback);
+};
+
+BraidDb.prototype.addTileMember = function(tileId, memberAddress, callback) {
+	this.tiles.update({
+		tileId : tileId
+	}, {
+		$addToSet : {
+			members : memberAddress
+		}
+	}, {
+		w : 1
+	}, callback);
+};
+
+BraidDb.prototype.removeTileMember = function(tileId, memberDescriptor, callback) {
 	this.tileCollection.update({
-		tileId : processor.tileId
+		tileId : tileId
 	}, {
 		$pull : {
 			members : memberDescriptor

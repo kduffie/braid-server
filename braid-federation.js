@@ -177,7 +177,7 @@ FederationSession.prototype.onSocketMessageReceived = function(msg) {
 				this.messageSwitch.deliver(message);
 				break;
 			default:
-				this.sendErrorResponseIfAppropriate(message, "Invalid state", 400, true);
+				this.sendErrorResponseIfAppropriate(message, "federation: " + this.config.domain + ": Invalid state: " + this.state, 400, true);
 				break;
 			}
 		} catch (err) {

@@ -1,3 +1,7 @@
+if (typeof require !== 'undefined') {
+	var BraidAddress = require('./braid-address').BraidAddress;
+}
+
 var messageId = Math.floor(Math.random() * 20) * 100 + 1;
 
 function BraidFactory() {
@@ -196,19 +200,10 @@ BraidFactory.prototype.newTileShareMessage = function(to, from, tileInfo) {
 	return message;
 };
 
-BraidFactory.prototype.newTileAcceptRequest = function(to, from, tileId) {
-	var message = this.newRequest("tile-accept", to, from);
+BraidFactory.prototype.newTileAcceptMessage = function(to, from, tileId) {
+	var message = this.newCastMessage("tile-accept", to, from);
 	message.data = {
 		tileId : tileId
-	};
-	return message;
-};
-
-BraidFactory.prototype.newTileAcceptReply = function(requestMessage, tileId, mutationCount, from, to) {
-	var message = this.newReply(requestMessage, from, to);
-	message.data = {
-		tileId : tileId,
-		mutationCount : mutationCount
 	};
 	return message;
 };
@@ -227,12 +222,12 @@ BraidFactory.prototype.newTileMutationMessage = function(to, from, mutation) {
 	return message;
 };
 
-BraidFactory.prototype.newTileMutationResendRequest = function(to, from, tileId, mutationId, blobId) {
-	var message = this.newRequest("tile-mutation-resend", to, from);
+BraidFactory.prototype.newTileMutationResendRequest = function(to, from, tileId, mutationId, fileId) {
+	var message = this.newCastMessage("tile-mutation-resend", to, from);
 	message.data = {
 		tileId : tileId,
 		mutationId : mutationId,
-		blobId : blobId
+		fileId : fileId
 	};
 	return message;
 };
@@ -248,8 +243,8 @@ BraidFactory.prototype.newTileMutationListRequest = function(to, from, tileId, s
 	return message;
 };
 
-BraidFactory.prototype.newTileMutationListReply = function(requestMessage, to, from, tileId, mutationDescriptors) {
-	var message = this.newReply(requestMessage, from, to);
+BraidFactory.prototype.newTileMutationListReply = function(requestMessage, from, tileId, mutationDescriptors) {
+	var message = this.newReply(requestMessage, from);
 	message.data = {
 		tileId : tileId,
 		descriptors : mutationDescriptors
@@ -257,7 +252,7 @@ BraidFactory.prototype.newTileMutationListReply = function(requestMessage, to, f
 	return message;
 };
 
-BraidFactory.prototype.newTileInventoryListRequest = function(to, from, summaries) {
+BraidFactory.prototype.newTileInventoryRequest = function(to, from, summaries) {
 	var message = this.newRequest("tile-inventory", to, from);
 	message.data = {
 		summaries : summaries
@@ -265,8 +260,8 @@ BraidFactory.prototype.newTileInventoryListRequest = function(to, from, summarie
 	return message;
 };
 
-BraidFactory.prototype.newTileInventoryListReply = function(requestMessage, to, from, mismatchedTileSummaries, missingTileInfos, upgradeAppDescriptors) {
-	var message = this.newReply(requestMessage, from, to);
+BraidFactory.prototype.newTileInventoryReply = function(requestMessage, from, mismatchedTileSummaries, missingTileInfos, upgradeAppDescriptors) {
+	var message = this.newReply(requestMessage, from);
 	message.data = {
 		mismatchedTiles : mismatchedTileSummaries,
 		missingTiles : missingTileInfos,
@@ -315,30 +310,53 @@ BraidFactory.prototype.newAppFetchReply = function(requestMessage, to, from, app
 	return message;
 };
 
-BraidFactory.prototype.newTileSummary = function(tileId, appId, version, mutationCount, stateHash, latestMutationId, latestMutationCreated,
-		latestMutationOriginator, remoteMutationAvailable, remoteMutationMatch) {
+BraidFactory.prototype.newLatestMutationSummary = function(mutationId, stateHash) {
 	return {
-		tileId : tileId,
-		appId : appId,
-		version : version,
-		mutationCount : mutationCount,
-		stateHash : stateHash,
-		latestMutation : {
-			id : latestMutationId,
-			created : latestMutationCreated,
-			originator : latestMutationOriginator
-		},
-		remoteMutation : {
-			available : remoteMutationAvailable,
-			match : remoteMutationMatch
-		}
+		mutationId : mutationId,
+		stateHash : stateHash
 	};
 };
 
-BraidFactory.prototype.newTileMutationDescriptor = function(id, stateHash) {
+BraidFactory.prototype.newRemoteMutationSummary = function(available, match) {
+	return {
+		available : available,
+		match : match
+	};
+};
+
+BraidFactory.prototype.newTileSummary = function(tileId, appId, appVersion, mutationCount, stateHash, latestMutationId, remoteMutation) {
+	var result = {
+		tileId : tileId,
+		appId : appId,
+		appVersion : appVersion,
+		mutationCount : mutationCount,
+		stateHash : stateHash,
+		latestMutationId : latestMutationId
+	};
+	if (remoteMutation) {
+		result.remoteMutation = remoteMutation;
+	}
+	return result;
+};
+
+BraidFactory.prototype.newTileSummaryFromTileRecord = function(record, remoteMutation) {
+	var summary = this.newTileSummary(record.tileId, record.appId, record.version, 0, 0);
+	if (record.summaryInfo) {
+		summary.mutationCount = record.summaryInfo.mutationCount;
+		summary.stateHash = record.summaryInfo.stateHash;
+		summary.latestMutationId = record.summaryInfo.latestMutationId;
+	}
+	if (remoteMutation) {
+		summary.remoteMutation = remoteMutation;
+	}
+	return summary;
+};
+
+BraidFactory.prototype.newTileMutationDescriptor = function(id, stateHash, resent) {
 	return {
 		id : id,
-		stateHash : stateHash
+		stateHash : stateHash,
+		resent : resent
 	};
 };
 
@@ -361,7 +379,7 @@ BraidFactory.prototype.newTileInfo = function(tileId, appId, version, mutationCo
 	};
 };
 
-BraidFactory.prototype.newTileMutation = function(tileId, mutationId, created, originator, action, value, fileId, previousValue) {
+BraidFactory.prototype.newTileMutation = function(tileId, mutationId, created, originator, action, value, fileId) {
 	return {
 		tileId : tileId,
 		mutationId : mutationId,
@@ -369,14 +387,17 @@ BraidFactory.prototype.newTileMutation = function(tileId, mutationId, created, o
 		originator : originator,
 		action : action,
 		value : value,
-		fileId : fileId,
-		previousValue : previousValue
+		fileId : fileId
 	};
 };
 
-BraidFactory.prototype.newTileMutationMemberValue = function(memberBrid) {
+BraidFactory.prototype.newTileMutationFromMutationRecord = function(record) {
+	return this.newTileMutation(record.tileId, record.mutationId, record.created, record.originator, record.action, record.value, record.fileId);
+};
+
+BraidFactory.prototype.newTileMutationMemberValue = function(address) {
 	return {
-		member : memberBrid
+		member : address
 	};
 };
 
@@ -394,14 +415,15 @@ BraidFactory.prototype.newTileMutationDeletePropertyValue = function(name, type,
 	};
 };
 
-BraidFactory.prototype.newTileMutationAddMember = function(mutation, memberBrid) {
-	mutation.action = 'add-member';
-	mutation.value = this.newTileMutationMemberValue(memberBrid);
+BraidFactory.prototype.newTileMutationAddMember = function(mutation, address) {
+	var bareAddress = new BraidAddress(address.userId, address.domain);
+	mutation.action = 'member-add';
+	mutation.value = this.newTileMutationMemberValue(bareAddress);
 	return mutation;
 };
 
 BraidFactory.prototype.newTileMutationRemoveMember = function(mutation, memberBrid) {
-	mutation.action = 'remove-member';
+	mutation.action = 'member-remove';
 	mutation.value = this.newTileMutationMemberValue(memberBrid);
 	return mutation;
 };
@@ -527,15 +549,28 @@ BraidFactory.prototype.newSubscriptionRecord = function(targetUserId, targetDoma
 	};
 };
 
-BraidFactory.prototype.newTileRecordFromInfo = function(tileInfo) {
+BraidFactory.prototype.newTileRecordFromInfo = function(tileInfo, summaryInfo) {
 	return {
 		tileId : tileInfo.tileId,
 		appId : tileInfo.appId,
 		version : tileInfo.version,
-		mutationCount : tileInfo.mutationCount,
+		pendingMutationCount : tileInfo.pendingMutationCount,
 		createdBy : tileInfo.createdBy,
 		created : tileInfo.created,
-		members : []
+		members : [],
+		summaryInfo : summaryInfo
+	};
+};
+
+BraidFactory.prototype.newTileRecordSummaryInfo = function(mutationCount, stateHash, latestMutationId, latestMutationCreated, latestMutationOriginator) {
+	return {
+		mutationCount : mutationCount,
+		stateHash : stateHash,
+		latestMutation : {
+			mutationId : latestMutationId,
+			created : latestMutationCreated,
+			originator : latestMutationOriginator
+		}
 	};
 };
 
@@ -546,7 +581,7 @@ BraidFactory.prototype.newUserTileRecord = function(userId, tileId) {
 	};
 };
 
-BraidFactory.prototype.newMutationRecord = function(tileId, mutationId, created, originator, action, value, fileId, previousValue, integrated) {
+BraidFactory.prototype.newMutationRecord = function(tileId, mutationId, created, originator, action, value, fileId, stateHash, previousValue, integrated, index) {
 	return {
 		tileId : tileId,
 		mutationId : mutationId,
@@ -555,8 +590,10 @@ BraidFactory.prototype.newMutationRecord = function(tileId, mutationId, created,
 		action : action,
 		value : value,
 		fileId : fileId,
+		stateHash : stateHash,
 		previousValue : previousValue,
-		integrated : integrated
+		integrated : integrated,
+		index : index
 	};
 };
 
