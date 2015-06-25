@@ -5,6 +5,7 @@ var BraidAddress;
 var isWebClient = true;
 
 if (typeof require !== 'undefined') {
+	newAddress = require('./braid-address').newAddress;
 	BraidAddress = require('./braid-address').BraidAddress;
 	factory = require('./braid-factory');
 	var WebSocket = require('ws');
@@ -26,6 +27,10 @@ function BraidClient(domain, port, server) {
 
 BraidClient.prototype.onImReceived = function(handler) {
 	this.imHandler = handler;
+};
+
+BraidClient.prototype.onPresenceNotification = function(handler) {
+	this.presenceHandler = handler;
 };
 
 BraidClient.prototype.connect = function(callback) {
@@ -285,6 +290,9 @@ BraidClient.prototype.handleUnsubscribe = function(message) {
 };
 
 BraidClient.prototype.handlePresence = function(message) {
+	if (this.presenceHandler) {
+		this.presenceHandler(message);
+	}
 	if (message.data && message.data.address) {
 		var address = newAddress(message.data.address);
 		var rosterItem = this.roster[address.asString(true)];

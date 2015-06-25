@@ -88,12 +88,19 @@ function createTestConfig(domain, clientPort, serverPort, federationTimeout) {
 			"enabled" : true,
 			"ssl" : false,
 			"port" : serverPort,
-			"idleInSeconds" : 2,
+			"idleInSeconds" : federationTimeout,
 			"hello" : {}
 		},
 		"debug" : {
+			"messageSwitch" : {
+				"logMessages" : false
+			},
+			"clientSessions" : {
+				"logMessages" : false
+			},
 			"federation" : {
-				"idlePoll" : 500
+				"logMessages" : false,
+				"idlePoll" : 300
 			}
 		}
 	};

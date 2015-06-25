@@ -147,18 +147,20 @@ MessageSwitch.prototype.unregister = function(registration) {
 };
 
 MessageSwitch.prototype.deliver = function(message, callback) {
-	if (this.config && this.config.debug && this.config.debug.messageSwitch && this.config.debug.messageSwitch.logMessages) {
-		console.log("X ", message);
-	}
+	// if (this.config && this.config.debug && this.config.debug.messageSwitch && this.config.debug.messageSwitch.logMessages) {
+	console.log("X ", message);
+	// }
 	this.stats.messages.received++;
+	if (message.to && !Array.isArray(message.to)) {
+		message.to = [ message.to ];
+	}
 	var tasks = [];
 	tasks.push(function(callback) {
 		if (message.to) {
-			if (!Array.isArray(message.to)) {
-				message.to = [ message.to ];
-			}
 			var handlers = [];
+			console.log("message-switch:debug: ", message.to);
 			for (var i = 0; i < message.to.length; i++) {
+				console.log("message-switch:debug: recipient", message.to[i]);
 				var recipient = message.to[i];
 				if (recipient.userId && recipient.domain) {
 					var key = this._getUserKey(recipient.userId, recipient.domain);
@@ -186,9 +188,6 @@ MessageSwitch.prototype.deliver = function(message, callback) {
 	}.bind(this));
 	tasks.push(function(callback) {
 		if (message.to) {
-			if (!Array.isArray(message.to)) {
-				message.to = [ message.to ];
-			}
 			var handlers = [];
 			for (var i = 0; i < message.to.length; i++) {
 				var recipient = message.to[i];
