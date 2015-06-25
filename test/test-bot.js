@@ -92,16 +92,15 @@ describe("bot:", function() {
 					console.log("Property mutation was properly applied");
 					// Now we're going to issue a tile-accept from the originator and see if we get back a proper reply followed by
 					// the mutations
-					var tileAccept = factory.newTileAcceptRequest(new BraidAddress('joe', 'test.com', '!bot'), new BraidAddress('joe', 'test.com', 'abcdef'),
+					var tileAccept = factory.newTileAcceptMessage(new BraidAddress('joe', 'test.com', '!bot'), new BraidAddress('joe', 'test.com', 'abcdef'),
 							't3');
-					services.messageSwitch.waitForMessages(2, 2000, function(err, messages) {
+					services.messageSwitch.waitForMessages(1, 2000, function(err, messages) {
 						assert(!err);
-						assert.equal(messages.length, 2);
-						assert.equal(messages[0].type, 'reply');
-						assert.equal(messages[1].type, 'cast');
-						assert.equal(messages[1].request, 'tile-mutation');
-						assert.equal(messages[1].data.tileId, 't3');
-						assert.equal(messages[1].data.mutationId, 'm1');
+						assert.equal(messages.length, 1);
+						assert.equal(messages[0].type, 'cast');
+						assert.equal(messages[0].request, 'tile-mutation');
+						assert.equal(messages[0].data.tileId, 't3');
+						assert.equal(messages[0].data.mutationId, 'm1');
 						done();
 					});
 					botMsgHandler(tileAccept);

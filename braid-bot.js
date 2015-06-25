@@ -81,7 +81,7 @@ BotManager.prototype.handleTileShare = function(message) {
 							if (err) {
 								console.error("Failure inserting tile", err);
 							} else {
-								var acceptMessage = this.factory.newTileAcceptRequest(message.from, this.createProxyAddress(message.from.userId),
+								var acceptMessage = this.factory.newTileAcceptMessage(message.from, this.createProxyAddress(message.from.userId),
 										message.data.tileId);
 								this.sendMessage(acceptMessage);
 							}
@@ -201,8 +201,6 @@ BotManager.prototype.handleTileAccept = function(message, to) {
 
 BotManager.prototype.processAccept = function(tileRecord, message, to) {
 	this.braidDb.countMutations(tileRecord.tileId, function(err, mutationCount) {
-		this.sendMessage(this.factory.newTileAcceptReply(message, tileRecord.tileId, mutationCount, new BraidAddress(to.userId, this.config.domain,
-				BOT_RESOURCE)));
 		this.braidDb.iterateMutations(tileRecord.tileId, false, function(err, cursor) {
 			if (err) {
 				console.error("Failure while iterating tile records", err);
