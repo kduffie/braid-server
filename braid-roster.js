@@ -112,7 +112,7 @@ RosterManager.prototype._handleRosterMessage = function(message) {
 			var entries = [];
 			async.each(records, function(record, callback) {
 				var address = newAddress(record.target);
-				var activeUser = this.getActiveUser(address);
+				var activeUser = this.getOrCreateActiveUser(address);
 				var entry = this.factory.newRosterEntry(new BraidAddress(record.target.userId, record.target.domain), activeUser.resources);
 				entries.push(entry);
 				callback();
@@ -128,9 +128,9 @@ RosterManager.prototype._handleRosterMessage = function(message) {
 		// First, we need to make sure that they aren't telling us about users that aren't in their own domain.
 		if (message.data && message.data.address && message.data.address.domain && message.data.address.domain === message.from.domain) {
 			if (message.data.online) {
-				onForeignClientSessionActivated(message.data);
+				this._onForeignClientSessionActivated(message.data);
 			} else {
-				onForeignClientSessionClosed(message.data);
+				this._onForeignClientSessionClosed(message.data);
 			}
 		} else {
 			// This is an invalid presence message. We'll ignore it.
@@ -142,7 +142,7 @@ RosterManager.prototype._handleRosterMessage = function(message) {
 	}
 };
 
-RosterManager.prototype.getActiveUser = function(address) {
+RosterManager.prototype.getOrCreateActiveUser = function(address) {
 	var key = address.asString();
 	var activeUser = this.activeUsers[key];
 	if (!activeUser) {
@@ -158,15 +158,15 @@ RosterManager.prototype.getActiveUser = function(address) {
 RosterManager.prototype._onForeignClientSessionActivated = function(entry) {
 	var address = newAddress(entry.address);
 	console.log("braid-roster: onForeignClientSessionActivated", entry);
-	var activeUser = this.getActiveUser(address);
-	activeUser.resources.push(session.userAddress.resource);
+	var activeUser = this.getOrCreateActiveUser(address);
+	activeUser.resources.push(address.resource);
 	this._notifyPresence(entry, false);
 };
 
 RosterManager.prototype._onForeignClientSessionClosed = function(entry) {
 	console.log("braid-roster: onForeignClientSessionClosed", entry);
-	var address = newAddress(address, true);
-	var activeUser = this.getActiveUser(address);
+	var address = newAddress(entry.address, true);
+	var activeUser = this.getOrCreateActiveUser(address);
 	var index = activeUser.resources.indexOf(address.resource);
 	if (index >= 0) {
 		activeUser.resources.splice(index, 1);
@@ -181,7 +181,7 @@ RosterManager.prototype._onClientSessionActivated = function(session) {
 	console.log("braid-roster: onClientSessionActivated", session.userAddress);
 	var entry = this.factory.newPresenceEntry(session.userAddress, true);
 	var address = newAddress(session.userAddress, true);
-	var activeUser = this.getActiveUser(address);
+	var activeUser = this.getOrCreateActiveUser(address);
 	activeUser.resources.push(session.userAddress.resource);
 	this._notifyPresence(entry, true);
 };

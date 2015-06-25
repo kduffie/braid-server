@@ -158,7 +158,7 @@ FederationSession.prototype.onSocketMessageReceived = function(msg) {
 				case 'cast':
 					switch (message.request) {
 					case 'presence':
-						message.to = [ this.presenceHandlerAddress ];
+						message.to = [ this.manager.presenceHandlerAddress ];
 						break;
 					}
 				}
