@@ -163,7 +163,8 @@ BraidDb.prototype._setupMutations = function(callback) {
 		this.mutations.ensureIndex({
 			tileId : 1,
 			mutationId : 1,
-			integrated : 1
+			integrated : 1,
+			index : 1
 		}, {
 			unique : true,
 			w : 1
@@ -386,6 +387,19 @@ BraidDb.prototype.iterateMutations = function(tileId, reverseChronological, call
 	var cursor = this.mutations.find({
 		tileId : tileId,
 		integrated : true
+	}).sort(sort);
+	callback(null, cursor);
+};
+
+BraidDb.prototype.iterateMutationsAfterIndex = function(tileId, index, callback /* (err, cursor) */) {
+	var sort;
+	sort = this.mutationForwardSort;
+	var cursor = this.mutations.find({
+		tileId : tileId,
+		integrated : true,
+		index : {
+			'$gt' : index
+		}
 	}).sort(sort);
 	callback(null, cursor);
 };

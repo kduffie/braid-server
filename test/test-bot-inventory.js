@@ -97,7 +97,7 @@ describe("bot: tile-inventory", function() {
 			// Now it is going to process the mutation. We need to wait briefly.
 			setTimeout(function() {
 				var summaries = [];
-				summaries.push(factory.newTileSummary('t4', 'app1', 1, 2, 23498, factory.newLatestMutationSummary('m2', 2500, originator)));
+				summaries.push(factory.newTileSummary('t4', 'app1', 1, 2, 23498, 'm2'));
 				var request = factory.newTileInventoryRequest(new BraidAddress('joe', 'test.com', '!bot'), new BraidAddress('joe', 'test.com', 'abcdef'),
 						summaries);
 				services.messageSwitch.waitForMessage(1000, function(err, reply) {

@@ -203,8 +203,7 @@ TileMutationProcessor.prototype.applyMutation = function(mutation, latestApplied
 			if (err) {
 				throw err;
 			}
-			var summaryInfo = factory.newTileRecordSummaryInfo(mutation.index + 1, mutation.stateHash, mutation.mutationId, mutation.created,
-					mutation.originator);
+			var summaryInfo = factory.newTileRecordSummaryInfo(mutation.index + 1, mutation.stateHash, mutation.mutationId);
 			this.handlers.updateTileSummaryInfo(this, summaryInfo, function(err) {
 				if (err) {
 					throw err;
