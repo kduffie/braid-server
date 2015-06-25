@@ -19,6 +19,7 @@
 		"enabled" : true,
 		"ssl" : false,
 		"port" : 25557,
+		"idleInSeconds" : 300,
 		"hello" : {
 		}
 	},
