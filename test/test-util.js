@@ -51,7 +51,7 @@ function createTestServicesWithStubs(config, callback) {
 	});
 }
 
-function createTestConfig(domain, clientPort, serverPort) {
+function createTestConfig(domain, clientPort, serverPort, federationTimeout) {
 	if (!domain) {
 		domain = 'test.com';
 	}
@@ -60,6 +60,9 @@ function createTestConfig(domain, clientPort, serverPort) {
 	}
 	if (!serverPort) {
 		serverPort = clientPort + 2
+	}
+	if (!federationTimeout) {
+		federationTimeout = 5000;
 	}
 	var mongoUrl = MONGO_URL.split("{domain}").join(domain.split(".").join("_"));
 	var config = {
@@ -85,7 +88,13 @@ function createTestConfig(domain, clientPort, serverPort) {
 			"enabled" : true,
 			"ssl" : false,
 			"port" : serverPort,
+			"idleInSeconds" : 2,
 			"hello" : {}
+		},
+		"debug" : {
+			"federation" : {
+				"idlePoll" : 500
+			}
 		}
 	};
 	return config;
