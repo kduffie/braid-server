@@ -5,6 +5,8 @@ var Grid = require('gridfs-stream');
 var newUuid = require('./braid-uuid');
 var fs = require('fs');
 var path = require('path');
+var crypto = require('crypto');
+var algorithm = 'aes-256-ctr';
 
 function FileServer() {
 
@@ -43,6 +45,16 @@ FileServer.prototype.authenticateRequest = function(request, response, callback)
 
 FileServer.prototype.handleGet = function(request, response) {
 	var parsedUrl = url.parse(request.url, true);
+	var decrypt = false;
+	var encryptionKey;
+	if (parsedUrl.query['decrypt']) {
+		encryptionKey = parsedUrl.query['key'];
+		if (!encryptionKey) {
+			this.sendResponse(400, "Encryption key missing");
+			return;
+		}
+		decrypt = true;
+	}
 	var pathParts = parsedUrl.pathname.split('/');
 	if (pathParts < 3) {
 		this.sendResponse(response, 404, "Not found");
@@ -70,7 +82,12 @@ FileServer.prototype.handleGet = function(request, response) {
 			readstream.on('finish', function() {
 
 			}.bind(this));
-			readstream.pipe(response);
+			if (decrypt) {
+				var decrypter = crypto.createDecipher(algorithm, encryptionKey);
+				readstream.pipe(decrypter).pipe(response);
+			} else {
+				readstream.pipe(response);
+			}
 		} else {
 			this.sendResponse(response, 404, "Not found");
 		}
@@ -79,8 +96,19 @@ FileServer.prototype.handleGet = function(request, response) {
 
 FileServer.prototype.handlePut = function(request, response) {
 	this.authenticateRequest(request, response, function(identity) {
+		var parsedUrl = url.parse(request.url, true);
 		var fileId = newUuid();
 		var filePath = this.config.domain + "/" + fileId;
+		var encrypt = false;
+		var encryptionKey;
+		if (parsedUrl.query['encrypt']) {
+			encryptionKey = newUuid();
+			if (!encryptionKey) {
+				this.sendResponse(400, "Decryption key missing");
+				return;
+			}
+			encrypt = true;
+		}
 		var contentType = request.headers['content-type'];
 		this.isFileExists(filePath, function(err, exists) {
 			if (err) {
@@ -88,7 +116,7 @@ FileServer.prototype.handlePut = function(request, response) {
 			} else if (exists) {
 				this.sendResponse(response, 409, "File with this UUID already exists");
 			} else {
-				this.storeFile(request, identity, filePath, fileId, contentType, function(err, details) {
+				this.storeFile(request, identity, filePath, fileId, contentType, encrypt, encryptionKey, function(err, details) {
 					if (err) {
 						this.sendResponse(response, 500, err);
 					} else {
@@ -106,11 +134,12 @@ FileServer.prototype.isFileExists = function(filePath, callback) {
 	}, callback);
 };
 
-FileServer.prototype.storeFile = function(request, identity, filePath, fileId, contentType, callback) {
+FileServer.prototype.storeFile = function(request, identity, filePath, fileId, contentType, encrypt, encryptionKey, callback) {
 	var metadata = {
 		domain : this.config.domain,
 		fileId : fileId,
-		contentType : contentType
+		contentType : contentType,
+		encrypted : encrypt
 	};
 	var options = {
 		filename : filePath,
@@ -120,9 +149,18 @@ FileServer.prototype.storeFile = function(request, identity, filePath, fileId, c
 	var writestream = this.gfs.createWriteStream(options);
 	writestream.on('error', callback);
 	writestream.on('close', function(file) {
+		if (encrypt) {
+			metadata.encryptionKey = encryptionKey;
+		}
+		console.log("storeFile", metadata);
 		callback(null, metadata);
 	}.bind(this));
-	request.pipe(writestream);
+	if (encrypt) {
+		var encrypter = crypto.createCipher(algorithm, encryptionKey);
+		request.pipe(encrypter).pipe(writestream);
+	} else {
+		request.pipe(writestream);
+	}
 };
 
 FileServer.prototype.handleUnsupportedRequest = function(request, response) {

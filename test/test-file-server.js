@@ -27,7 +27,7 @@ describe('file-server:', function() {
 		services.braidDb.close(done);
 	});
 
-	it('get missing file', function(done) {
+	it('put and retrieve file', function(done) {
 		fs.createReadStream(path.join(__dirname, 'braid.png')).pipe(request.put({
 			uri : 'http://localhost:25565',
 			headers : [ {
@@ -42,6 +42,33 @@ describe('file-server:', function() {
 
 			request.get({
 				uri : 'http://localhost:25565/' + details.domain + "/" + details.fileId,
+				encoding : null
+			}, function(error, response, body) {
+				assert.equal(response.body.length, 65048)
+				assert.equal(response.headers['content-type'], 'image/png');
+				assert.equal(response.statusCode, 200);
+				done();
+			});
+		}).on('error', function(err) {
+			throw err;
+		}));
+	});
+
+	it('using encryption', function(done) {
+		fs.createReadStream(path.join(__dirname, 'braid.png')).pipe(request.put({
+			uri : 'http://localhost:25565?encrypt=true',
+			headers : [ {
+				name : 'Content-Type',
+				value : 'image/png'
+			} ]
+		}, function(error, response, body) {
+			assert.equal(response.statusCode, 200);
+			var details = JSON.parse(body);
+			assert.equal(details.domain, 'test.com');
+			assert.equal(details.contentType, 'image/png');
+			assert(details.encryptionKey !== null);
+			request.get({
+				uri : 'http://localhost:25565/' + details.domain + "/" + details.fileId + "?decrypt=true&key=" + details.encryptionKey,
 				encoding : null
 			}, function(error, response, body) {
 				assert.equal(response.body.length, 65048)
