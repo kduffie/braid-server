@@ -108,9 +108,9 @@ BraidServer.prototype.startServer = function(callback) {
 BraidServer.prototype.shutdown = function(callback) {
 	this.services.clientSessionManager.shutdown();
 	this.services.federationManager.shutdown();
+	this.services.fileServer.close();
 	this.clientServer.close();
 	this.federationServer.close();
-	this.fileServer.close();
 	this.services.braidDb.close(callback);
 };
 

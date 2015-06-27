@@ -26,6 +26,8 @@
     "path": "^0.11.14",
     "request": "^2.58.0",
     "scribe-js": "^2.0.4",
+    "stream": "0.0.2",
+    "streamifier": "^0.1.1",
     "ws": "^0.7.2"
   },
   "devDependencies": {

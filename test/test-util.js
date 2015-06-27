@@ -91,6 +91,9 @@ function createTestConfig(domain, clientPort, serverPort, federationTimeout) {
 			"idleInSeconds" : federationTimeout,
 			"hello" : {}
 		},
+		"fileServer" : {
+			"port" : serverPort + 10
+		},
 		"debug" : {
 			"messageSwitch" : {
 				"logMessages" : false
