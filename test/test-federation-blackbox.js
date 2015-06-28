@@ -20,13 +20,13 @@ describe('blackbox: federation', function() {
 		this.timeout(5000);
 		var steps = [];
 		steps.push(function(callback) {
-			config1 = testUtil.createTestConfig('test.26001', 26000, 26001, 1);
+			config1 = testUtil.createTestConfig('test.26001', 'test1', 26000, 26001, 1);
 			server1 = new BraidServer();
 			server1.initialize(config1);
 			server1.start(callback)
 		});
 		steps.push(function(callback) {
-			config2 = testUtil.createTestConfig('test.27001', 27000, 27001, 1);
+			config2 = testUtil.createTestConfig('test.27001', 'test2', 27000, 27001, 1);
 			server2 = new BraidServer();
 			server2.initialize(config2);
 			server2.start(callback)
