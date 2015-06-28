@@ -9,6 +9,7 @@ var AuthServer = require('./braid-auth').AuthServer;
 var RosterManager = require('./braid-roster').RosterManager;
 var ClientSessionManager = require('./braid-client-sessions').ClientSessionManager;
 var FederationManager = require('./braid-federation').FederationManager;
+var FileServer = require('./braid-file-server').FileServer;
 var BotManager = require('./braid-bot').BotManager;
 
 var WebSocketServer = require('ws').Server;
@@ -35,6 +36,7 @@ BraidServer.prototype.start = function(callback) {
 		var rosterManager = new RosterManager();
 		var clientSessionManager = new ClientSessionManager();
 		var federationManager = new FederationManager();
+		var fileServer = new FileServer();
 		var botManager = new BotManager();
 		this.services = {
 			factory : factory,
@@ -45,6 +47,7 @@ BraidServer.prototype.start = function(callback) {
 			rosterManager : rosterManager,
 			clientSessionManager : clientSessionManager,
 			federationManager : federationManager,
+			fileServer : fileServer,
 			botManager : botManager
 		};
 		eventBus.initialize(this.config, this.services);
@@ -53,6 +56,7 @@ BraidServer.prototype.start = function(callback) {
 		rosterManager.initialize(this.config, this.services);
 		clientSessionManager.initialize(this.config, this.services);
 		federationManager.initialize(this.config, this.services);
+		fileServer.initialize(this.config, this.services);
 		botManager.initialize(this.config, this.services);
 
 		this.startServer(callback);
@@ -104,6 +108,7 @@ BraidServer.prototype.startServer = function(callback) {
 BraidServer.prototype.shutdown = function(callback) {
 	this.services.clientSessionManager.shutdown();
 	this.services.federationManager.shutdown();
+	this.services.fileServer.close();
 	this.clientServer.close();
 	this.federationServer.close();
 	this.services.braidDb.close(callback);

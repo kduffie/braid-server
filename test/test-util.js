@@ -1,4 +1,4 @@
-var MONGO_URL = "mongodb://localhost:27017/braid_{domain}";
+var MONGO_URL = "mongodb://localhost:27017/{dbname}";
 var factory = require('../braid-factory');
 var BraidDb = require('../braid-db');
 var EventBus = require('../braid-event-bus');
@@ -51,7 +51,7 @@ function createTestServicesWithStubs(config, callback) {
 	});
 }
 
-function createTestConfig(domain, clientPort, serverPort, federationTimeout) {
+function createTestConfig(domain, dbName, clientPort, serverPort, federationTimeout) {
 	if (!domain) {
 		domain = 'test.com';
 	}
@@ -64,7 +64,10 @@ function createTestConfig(domain, clientPort, serverPort, federationTimeout) {
 	if (!federationTimeout) {
 		federationTimeout = 5000;
 	}
-	var mongoUrl = MONGO_URL.split("{domain}").join(domain.split(".").join("_"));
+	if (!dbName) {
+		dbName = "test1";
+	}
+	var mongoUrl = MONGO_URL.split("{dbname}").join(dbName);
 	var config = {
 		"domain" : domain,
 		"mongo" : {
@@ -90,6 +93,9 @@ function createTestConfig(domain, clientPort, serverPort, federationTimeout) {
 			"port" : serverPort,
 			"idleInSeconds" : federationTimeout,
 			"hello" : {}
+		},
+		"fileServer" : {
+			"port" : serverPort + 10
 		},
 		"debug" : {
 			"messageSwitch" : {

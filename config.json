@@ -23,6 +23,9 @@
 		"hello" : {
 		}
 	},
+	"fileServer" : {
+		"port" : 25565
+	},
 	"bot" : {
 		"inventoryRequestDelay": 15000
 	},
