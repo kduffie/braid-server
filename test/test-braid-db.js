@@ -2,7 +2,7 @@ var assert = require('assert');
 var factory = require('../braid-factory');
 var BraidDb = require('../braid-db');
 
-var MONGO_URL = "mongodb://localhost:27017/braidTest";
+var MONGO_URL = "mongodb://localhost:27017/test1";
 
 var braidDb;
 
