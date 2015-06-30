@@ -67,6 +67,8 @@ but allows you to see the basic interactions between a client and server.
 
 Note that you can't federate your braid server until you can update DNS entries so that the server is associated with the braid service.
 
+Learn more on our [wiki](https://github.com/kduffie/braid-server/wiki)
+
 ## Status
 
 The server is still under development.  At this point, the server supports:
@@ -76,5 +78,5 @@ The server is still under development.  At this point, the server supports:
 - *Presence*:  subscribers are notified when sessions start and end for one of the people they are subscribed to
 - *Message delivery*:  clients can send braid-compatible messages to each other, using unicast or multicast
 - *Federation*:  braid servers for different domains can talk to each other and exchange messages between their clients
-
-There is a lot more to come.  Stay tuned.
+- *File services*: clients can upload and download files using HTTPS, optionally performing encryption in either case
+- *Tiles*:  tiles are a way for distributed collaboration apps to maintain synchronized shared state information

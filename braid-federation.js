@@ -239,7 +239,7 @@ FederationSession.prototype.handleFederateRequest = function(message) {
 		// Now we have a token. We will now close our connection, and initiate
 		// a new outbound connection with the token
 		console.log("federation: " + this.config.domain + ":  opening callback connection to " + message.from.domain);
-		domainNameServer.resolveBraidServer(message.from.domain, function(err, connectionUrl) {
+		domainNameServer.resolveBraidServer(this.config, message.from.domain, function(err, connectionUrl) {
 			if (err) {
 				console.error("federation: error resolving", err);
 			} else {
@@ -439,7 +439,7 @@ FederationManager.prototype.initiateFederation = function(domain) {
 	// We open a websocket to the server responsible for that domain. If they
 	// answer, we just provide a token that will be used to authenticate on
 	// a callback connection
-	domainNameServer.resolveBraidServer(domain, function(err, connectionUrl) {
+	domainNameServer.resolveBraidServer(this.config, domain, function(err, connectionUrl) {
 		if (err) {
 			console.error("Failure resolving domain", domain);
 		} else {

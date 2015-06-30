@@ -1,4 +1,5 @@
 var http = require('http');
+var https = require('https');
 var url = require('url');
 var mongodb = require('mongodb');
 var Grid = require('gridfs-stream');
@@ -100,7 +101,7 @@ FileServer.prototype.handleGet = function(getRequest, response) {
 		} else {
 			// It originated in a different domain, so I'll ask that domain
 			// for it
-			nameService.resolveFileServer(domain, function(err, fileServerUrl) {
+			nameService.resolveFileServer(this.config, domain, function(err, fileServerUrl) {
 				if (err) {
 					console.error("name server failure", err);
 					this.sendResponse(response, 500, err);

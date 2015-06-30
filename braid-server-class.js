@@ -14,6 +14,7 @@ var BotManager = require('./braid-bot').BotManager;
 
 var WebSocketServer = require('ws').Server;
 var http = require('http');
+var https = require('https');
 
 function BraidServer() {
 
@@ -73,7 +74,11 @@ BraidServer.prototype.startServer = function(callback) {
 		this.clientApp.use(express.static(path.join(__dirname, 'public')));
 
 		console.log("Listening for client connections on port " + clientPort);
-		this.clientServer = http.createServer(this.clientApp);
+		var httpImpl = https;
+		if (this.config.client && !this.config.client.ssl) {
+			httpImpl = http;
+		}
+		this.clientServer = httpImpl.createServer(this.clientApp);
 		this.clientServer.listen(clientPort);
 
 		var clientWss = new WebSocketServer({
@@ -92,7 +97,12 @@ BraidServer.prototype.startServer = function(callback) {
 		this.federationApp.use(express.static(path.join(__dirname, 'public')));
 
 		console.log("Listening for federation connections on port " + federationPort);
-		this.federationServer = http.createServer(this.federationApp);
+
+		var httpImpl = https;
+		if (this.config.federation && !this.config.federation.ssl) {
+			httpImpl = http;
+		}
+		this.federationServer = httpImpl.createServer(this.federationApp);
 		this.federationServer.listen(federationPort);
 
 		var federationWss = new WebSocketServer({

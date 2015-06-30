@@ -25,13 +25,20 @@ function resolveServer(domain, protocol, serviceName, defaultPort, devModePortOf
 	});
 }
 
-function resolveBraidServer(domain, callback) {
-	// TODO: This should be wss rather than ws once we go secure
-	resolveServer(domain, 'ws', 'braid-server', 25557, 0, callback);
+function resolveBraidServer(config, domain, callback) {
+	var protocol = 'wss';
+	if (config && config.federation && !config.federation.ssl) {
+		protocol = 'ws';
+	}
+	resolveServer(domain, protocol, 'braid-server', 25557, 0, callback);
 }
 
-function resolveFileServer(domain, callback) {
-	resolveServer(domain, 'http', 'braid-file-server', 25567, 10, callback);
+function resolveFileServer(config, domain, callback) {
+	var protocol = 'https';
+	if (config && config.federation && !config.federation.ssl) {
+		protocol = 'http';
+	}
+	resolveServer(domain, protocol, 'braid-file-server', 25567, 10, callback);
 }
 
 module.exports = {

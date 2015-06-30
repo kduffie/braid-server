@@ -9,6 +9,10 @@ function BotManager() {
 }
 
 BotManager.prototype.initialize = function(config, services) {
+	if (config.bot && !config.bot.enabled) {
+		console.log("braid-client-bot: disabled via configuration");
+		return;
+	}
 	console.log("braid-client-bot: initializing");
 	this.config = config;
 	this.factory = services.factory;

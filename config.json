@@ -5,28 +5,29 @@
 		"options" : {}
 	},
 	"ssl" : {
-		"key": "/path/to/your/ssl.key",
-		"cert": "/path/to/your/ssl.crt"
+		"key": "/usr/local/etc/certs/server.key",
+		"cert": "/usr/local/etc/certs/server.crt"
 	},
 	"client" : {
 		"enabled" : true,
-		"ssl" : false,
+		"ssl" : true,
 		"port" : 25555,
 		"hello" : {
 		}
 	},
 	"federation" : {
 		"enabled" : true,
-		"ssl" : false,
+		"ssl" : true,
 		"port" : 25557,
 		"idleInSeconds" : 300,
 		"hello" : {
 		}
 	},
 	"fileServer" : {
-		"port" : 25565
+		"port" : 25559
 	},
 	"bot" : {
+		"enabled" : true,
 		"inventoryRequestDelay": 15000
 	},
 	"debug" : {
