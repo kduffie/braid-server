@@ -389,9 +389,13 @@ function FederationManager() {
 
 }
 
-FederationManager.prototype.initialize = function(configuration, services) {
+FederationManager.prototype.initialize = function(config, services) {
+	if (config.federation && !config.federation.enabled) {
+		console.log("braid-federation: disabled via configuration");
+		return;
+	}
 	console.log("federation: initializing");
-	this.config = configuration;
+	this.config = config;
 	this.services = services;
 	this.factory = services.factory;
 	this.messageSwitch = services.messageSwitch;

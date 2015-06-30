@@ -16,6 +16,10 @@ var newUuid = require('./braid-uuid');
  */
 
 function Session(config, services, connection, sessionId, manager) {
+	if (config.client && !config.client.enabled) {
+		console.log("braid-client-sessions: disabled via configuration");
+		return;
+	}
 	console.log("braid-clients:  Handling new connection");
 	this.sessionId = sessionId;
 	this.manager = manager;

@@ -10,20 +10,22 @@
 	},
 	"client" : {
 		"enabled" : true,
-		"ssl" : true,
+		"ssl" : false,
 		"port" : 25555,
 		"hello" : {
 		}
 	},
 	"federation" : {
 		"enabled" : true,
-		"ssl" : true,
+		"ssl" : false,
 		"port" : 25557,
 		"idleInSeconds" : 300,
 		"hello" : {
 		}
 	},
 	"fileServer" : {
+		"enabled" : true,
+		"ssl" : false,
 		"port" : 25559
 	},
 	"bot" : {
