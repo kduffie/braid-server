@@ -1,5 +1,7 @@
 var express = require('express');
 var path = require('path');
+var crypto = require('crypto')
+var fs = require('fs')
 
 var factory = require('./braid-factory');
 var BraidDb = require('./braid-db');
@@ -14,7 +16,7 @@ var BotManager = require('./braid-bot').BotManager;
 
 var WebSocketServer = require('ws').Server;
 var http = require('http');
-var https = require('https');
+var https = require('https')
 
 function BraidServer() {
 
@@ -73,12 +75,20 @@ BraidServer.prototype.startServer = function(callback) {
 		this.clientApp = express();
 		this.clientApp.use(express.static(path.join(__dirname, 'public')));
 
-		console.log("Listening for client connections on port " + clientPort);
-		var httpImpl = https;
 		if (this.config.client && !this.config.client.ssl) {
-			httpImpl = http;
+			console.log("Using unencrypted client connections");
+			this.clientServer = http.createServer(this.clientApp);
+		} else {
+			console.log("Using encyrpted client connections");
+			var privateKey = fs.readFileSync(this.config.ssl.key, 'utf8');
+			var certificate = fs.readFileSync(this.config.ssl.cert, 'utf8');
+			var credentials = {
+				key : privateKey,
+				cert : certificate
+			};
+			this.clientServer = https.createServer(credentials, this.clientApp);
 		}
-		this.clientServer = httpImpl.createServer(this.clientApp);
+		console.log("Listening for client connections on port " + clientPort);
 		this.clientServer.listen(clientPort);
 
 		var clientWss = new WebSocketServer({
@@ -96,13 +106,20 @@ BraidServer.prototype.startServer = function(callback) {
 		this.federationApp = express();
 		this.federationApp.use(express.static(path.join(__dirname, 'public')));
 
-		console.log("Listening for federation connections on port " + federationPort);
-
-		var httpImpl = https;
 		if (this.config.federation && !this.config.federation.ssl) {
-			httpImpl = http;
+			console.log("Using unencrypted federation connections");
+			this.federationServer = http.createServer(this.federationApp);
+		} else {
+			console.log("Using encyrpted federation connections");
+			var privateKey = fs.readFileSync(this.config.ssl.key, 'utf8');
+			var certificate = fs.readFileSync(this.config.ssl.cert, 'utf8');
+			var credentials = {
+				key : privateKey,
+				cert : certificate
+			};
+			this.federationServer = https.createServer(credentials, this.federationApp);
 		}
-		this.federationServer = httpImpl.createServer(this.federationApp);
+		console.log("Listening for federation connections on port " + federationPort);
 		this.federationServer.listen(federationPort);
 
 		var federationWss = new WebSocketServer({

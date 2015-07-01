@@ -18,10 +18,26 @@ function FileServer() {
 }
 
 FileServer.prototype.initialize = function(config, services) {
+	if (config.fileServer && !config.fileServer.enabled) {
+		console.log("file-server: not installed based on configuration");
+		return;
+	}
 	this.config = config;
 	this.factory = services.factory;
 	this.gfs = Grid(services.braidDb.db, mongodb);
-	this.server = http.createServer(this.requestHandler.bind(this));
+	if (this.config.fileServer && !this.config.fileServer.ssl) {
+		console.log("file-server: starting unencrypted server");
+		this.server = http.createServer(this.requestHandler.bind(this));
+	} else {
+		console.log("file-server: starting encrypted server");
+		var privateKey = fs.readFileSync(this.config.ssl.key, 'utf8');
+		var certificate = fs.readFileSync(this.config.ssl.cert, 'utf8');
+		var credentials = {
+			key : privateKey,
+			cert : certificate
+		};
+		this.server = https.createServer(credentials, this.requestHandler.bind(this));
+	}
 	var port = 25565;
 	if (this.config.fileServer && this.config.fileServer.port) {
 		port = this.config.fileServer.port;

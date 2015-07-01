@@ -51,7 +51,8 @@
     		return l;
 		};
 		var loc = getLocation(document.location);
-		var braidClient = new BraidClient(loc.hostname, loc.port);
+		var nonSecure = loc.protocol === 'http:';
+		var braidClient = new BraidClient(loc.hostname, loc.port, nonSecure);
 		var connected = false;
 		var connecting = false;
 		

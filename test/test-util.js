@@ -56,7 +56,7 @@ function createTestConfig(domain, dbName, clientPort, serverPort, federationTime
 		domain = 'test.com';
 	}
 	if (!clientPort) {
-		clientPort = 25555;
+		clientPort = 27555;
 	}
 	if (!serverPort) {
 		serverPort = clientPort + 2
@@ -95,6 +95,8 @@ function createTestConfig(domain, dbName, clientPort, serverPort, federationTime
 			"hello" : {}
 		},
 		"fileServer" : {
+			"enabled" : true,
+			"ssl" : false,
 			"port" : serverPort + 10
 		},
 		"debug" : {
