@@ -1,5 +1,6 @@
 if (typeof require !== 'undefined') {
 	var BraidAddress = require('./braid-address').BraidAddress;
+	var newUuid = require('./braid-uuid');
 }
 
 var messageId = Math.floor(Math.random() * 20) * 100 + 1;
@@ -7,149 +8,207 @@ var messageId = Math.floor(Math.random() * 20) * 100 + 1;
 function BraidFactory() {
 }
 
-BraidFactory.prototype.newMessage = function(to, id, from) {
-	var mid;
-	if (id) {
-		mid = id;
-	} else {
-		mid = messageId++;
-	}
-	var message = {
-		id : mid
+BraidFactory.prototype.newBareAddress = function(userid, domain) {
+	var result = {
+		domain : domain
 	};
+	if (userid) {
+		result.userid = userid;
+	}
+	return result;
+};
+
+BraidFactory.prototype.newAddress = function(userid, domain, resource) {
+	var result = this.newBareAddress(userid, domain);
+	if (resource) {
+		result.resource = resource;
+	}
+	return result;
+};
+
+// Messages
+
+BraidFactory.prototype.newMessage = function(id, type, request, from, to, code, message, data) {
+	var result = {
+		id : id,
+		type : type,
+		request : request
+	};
+	if (from) {
+		result.from = from;
+	}
 	if (to) {
 		if (Array.isArray(to)) {
-			message.to = to;
+			result.to = to;
 		} else {
-			message.to = [ to ];
+			result.to = [ to ];
 		}
 	}
-	if (from) {
-		message.from = from;
-	}
-	return message;
-};
-
-BraidFactory.prototype.newRequest = function(requestType, to, from) {
-	var message = this.newMessage(to, null, from);
-	message.type = "request";
-	message.request = requestType;
-	return message;
-};
-
-BraidFactory.prototype.newReply = function(requestMessage, from, to) {
-	if (!to || to.length === 0) {
-		to = [ requestMessage.from ];
-	}
-	var message = this.newMessage(to, requestMessage.id, from);
-	message.type = "reply";
-	if (requestMessage.request) {
-		message.request = requestMessage.request;
-	}
-	return message;
-};
-
-BraidFactory.prototype.newErrorReply = function(requestMessage, code, errorMessage, from) {
-	var message = this.newMessage(requestMessage.from, requestMessage.id, from);
-	message.type = "error";
-	if (requestMessage.request) {
-		message.request = requestMessage.request;
-	}
 	if (code) {
-		message.code = code;
+		result.code = code;
 	}
-	if (errorMessage) {
-		message.message = errorMessage;
+	if (message) {
+		result.message = message;
 	}
-	return message;
+	if (data) {
+		message.data = data;
+	}
+	return result;
 };
 
-BraidFactory.prototype.newHelloPayload = function(product, version, capabilities) {
-	if (!capabilities) {
-		capabilities = {};
-	}
+BraidFactory.prototype.newCastMessage = function(request, from, to, data) {
+	return this.newMessage(messageId++, "cast", request, from, to, null, null, data);
+};
+
+BraidFactory.prototype.newRequestMessage = function(request, from, to, data) {
+	return this.newMessage(messageId++, "request", request, from, to, null, null, data);
+};
+
+BraidFactory.prototype.newReplyMessage = function(requestMessage, from, data) {
+	return this.newMessage(requestMessage.id, "reply", requestMessage.request, from, requestMessage.from, null, null, data);
+};
+
+BraidFactory.prototype.newErrorMessage = function(requestMessage, from, code, message) {
+	return this.newMessage(requestMessage.id, "error", requestMessage.request, from, requestMessage.from, code, message, null);
+};
+
+BraidFactory.prototype.newUnhandledMessageErrorReply = function(requestMessage, from) {
+	return this.newErrorMessage(requestMessage, from, 400, "Message type is unrecognized or unhandled");
+};
+
+// All various braid message objects
+
+BraidFactory.prototype.newAuthRequestMessage = function(user, password) {
+	return this.newRequestMessage("auth", null, this.newCredentialMessageData(user, password));
+};
+
+BraidFactory.prototype.newAuthReplyMessage = function(requestMessage, from) {
+	return this.newReplyMessage(requestMessage, from, null);
+};
+
+BraidFactory.prototype.newRegisterRequestMessage = function(user, password) {
+	return this.newRequestMessage("register", null, this.newCredentialMessageData(user, password));
+};
+
+BraidFactory.prototype.newRegisterReplyMessage = function(requestMessage, from) {
+	return this.newReplyMessage(requestMessage, from, null);
+};
+
+BraidFactory.prototype.newHelloRequestMessage = function(from, to, product, version, capabilities) {
+	return this.newRequestMessage("hello", from, to, this.newHelloMessageData(product, version, capabilities));
+};
+
+BraidFactory.prototype.newHelloReplyMessage = function(requestMessage, from, product, version, capabilities) {
+	return this.newReplyMessage(requestMessage, from, this.newHelloMessageData(product, version, capabilities));
+};
+
+BraidFactory.prototype.newIMMessage = function(from, to, text) {
+	return this.newCastMessage("im", from, to, this.newIMMessageData(text));
+};
+
+BraidFactory.prototype.newPresenceMessage = function(from, to, address, online) {
+	return this.newCastMessage("presence", from, to, this.newPresenceMessageData(address, online));
+};
+
+BraidFactory.prototype.newRosterRequestMessage = function(from, to) {
+	return this.newRequestMessage("roster", from, to, null);
+};
+
+BraidFactory.prototype.newRosterReplyMessage = function(requestMessage, from, data) {
+	return this.newReplyMessage(requestMessage, from, data);
+};
+
+BraidFactory.prototype.newPingRequestMessage = function(from, to) {
+	return this.newRequestMessage("ping", from, to, null);
+};
+
+BraidFactory.prototype.newPingReplyMessage = function(requestMessage, from) {
+	return this.newReplyMessage(requestMessage, from, null);
+};
+
+BraidFactory.prototype.newSubscribeMessage = function(from, to, resources) {
+	return this.newCastMessage("subscribe", from, to, this.newSubscribeMessageData(resources));
+};
+
+BraidFactory.prototype.newUnsubscribeMessage = function(from, to, resources) {
+	return this.newCastMessage("unsubscribe", from, to, null);
+};
+
+BraidFactory.prototype.newSynchronizeRequestMessage = function(from, to, summaries) {
+	return this.newRequestMessage("synchronize", from, to, this.newSynchronizeRequestMessageData(summaries));
+};
+
+BraidFactory.prototype.newSynchronizeReplyMessage = function(requestMessage, from, missing, mismatches) {
+	return this.newReplyMessage(requestMessage, from, this.newSynchronizeReplyMessageData(missing, mismatches));
+};
+
+BraidFactory.prototype.newMutationMessage = function(from, to, mutation) {
+	return this.newCastMessage("mutation", from, to, mutation);
+};
+
+BraidFactory.prototype.newMutationListRequestMessage = function(from, to, objectType, objectId, startingAfter, deliverFull) {
+	return this.newRequestMessage("mutation-list", from, to, this.newMutationListRequestMessageData(objectType, objectId, startingAfter, deliverFull));
+};
+
+BraidFactory.prototype.newMutationListReplyMessage = function(requestMessage, from, objectType, objectId, descriptors) {
+	return this.newReplyMessage(requestMessage, from, this.newMutationListReplyMessageData(objectType, objectId, descriptors));
+};
+
+BraidFactory.prototype.newFederateRequestMessage = function(from, to, token) {
+	return this.newRequestMessage("federate", from, to, this.newFederateMessageData(token));
+};
+
+BraidFactory.prototype.newFederateReplyMessage = function(requestMessage, from) {
+	return this.newReplyMessage(requestMessage, from, null);
+};
+
+BraidFactory.prototype.newCallbackRequestMessage = function(from, to, token) {
+	return this.newRequestMessage("callback", from, to, this.newCallbackMessageData(token));
+};
+
+BraidFactory.prototype.newCallbackReplyMessage = function(requestMessage, from) {
+	return this.newReplyMessage(requestMessage, from, null);
+};
+
+BraidFactory.prototype.newCloseRequestMessage = function(from, to) {
+	return this.newRequestMessage("close", to, from, null);
+};
+
+// Data objects used in the 'data' member of messages
+
+BraidFactory.prototype.newCredentialMessageData(user, password)
+{
 	return {
+		user : user,
+		password : this.base64Encode(password)
+	};
+};
+
+BraidFactory.prototype.newHelloMessageData(product, version, capabilities)
+{
+	var result = {
 		product : product,
-		version : version,
-		capabilities : capabilities
+		version : version
 	};
-};
-
-BraidFactory.prototype.newHelloReply = function(requestMessage, payload, from) {
-	var message = this.newReply(requestMessage, from);
-	message.data = payload;
-	return message;
-};
-
-BraidFactory.prototype.newHelloRequest = function(payload, from) {
-	var message = this.newRequest('hello', null, from);
-	message.data = payload;
-	return message;
-};
-
-BraidFactory.prototype.newCastMessage = function(requestType, to, from) {
-	var message = this.newMessage(to, null, from);
-	message.type = "cast";
-	message.request = requestType;
-	return message;
-};
-
-BraidFactory.prototype.newRegisterRequest = function(userId, password, to, from) {
-	var message = this.newRequest("register", to, from);
-	password = this.base64Encode(password);
-	message.data = {
-		user : userId,
-		password : password
-	};
-	return message;
-};
-
-BraidFactory.prototype.base64Encode = function(value) {
-	if (typeof Buffer === 'undefined') {
-		return btoa(value);
-	} else {
-		var buf = new Buffer(value);
-		return buf.toString('base64');
+	if (capabilities) {
+		result.capabilities = capabilities;
 	}
+	return result;
 };
 
-BraidFactory.prototype.newTextMessage = function(textMessage, to, from) {
-	var message = this.newCastMessage("im", to, from);
-	message.data = {
-		message : textMessage
+BraidFactory.prototype.newIMMessageData(text)
+{
+	return {
+		message : text
 	};
-	return message;
 };
 
-BraidFactory.prototype.newAuthRequest = function(userId, password, to, from) {
-	var message = this.newRequest("auth", to, from);
-	password = this.base64Encode(password);
-	message.data = {
-		user : userId,
-		password : password
+BraidFactory.prototype.newPresenceMessageData(address, online)
+{
+	return {
+		address : address,
+		online : online
 	};
-	return message;
-};
-
-BraidFactory.prototype.newFederateMessage = function(token, to, from) {
-	var message = this.newRequest("federate", to, from);
-	message.data = {
-		token : token
-	};
-	return message;
-};
-
-BraidFactory.prototype.newCallbackRequest = function(token, to, from) {
-	var message = this.newRequest("callback", to, from);
-	message.data = {
-		token : token
-	};
-	return message;
-};
-
-BraidFactory.prototype.newCloseRequest = function(to, from) {
-	var message = this.newRequest("close", to, from);
-	return message;
 };
 
 BraidFactory.prototype.newRosterEntry = function(targetAddress, resources) {
@@ -163,371 +222,274 @@ BraidFactory.prototype.newRosterEntry = function(targetAddress, resources) {
 	};
 };
 
-BraidFactory.prototype.newRosterRequest = function(to, from) {
-	var message = this.newRequest('roster', to, from);
-	return message;
-};
-
-BraidFactory.prototype.newRosterReply = function(requestMessage, roster, from) {
-	var message = this.newReply(requestMessage, from);
-	message.data = {
-	                entries: roster
-	};
-	return message;
-};
-
-BraidFactory.prototype.newPingRequest = function(to, from) {
-	var message = this.newRequest("ping", to, from);
-	return message;
-};
-
-BraidFactory.prototype.newSubscribeMessage = function(to, from, resources) {
-	var message = this.newCastMessage("subscribe", to, from);
-	if (resources) {
-		message.data = {
-			resources : resources
-		};
-	}
-	return message;
-};
-
-BraidFactory.prototype.newUnsubscribeMessage = function(to, from) {
-	var message = this.newCastMessage("unsubscribe", to, from);
-	return message;
-};
-
-BraidFactory.prototype.newTileShareMessage = function(to, from, tileInfo) {
-	var message = this.newCastMessage("tile-share", to, from);
-	message.data = tileInfo;
-	return message;
-};
-
-BraidFactory.prototype.newTileAcceptMessage = function(to, from, tileId) {
-	var message = this.newCastMessage("tile-accept", to, from);
-	message.data = {
-		tileId : tileId
-	};
-	return message;
-};
-
-BraidFactory.prototype.newTileMutationMessage = function(to, from, mutation) {
-	var message = this.newCastMessage("tile-mutation", to, from);
-	message.data = {
-		tileId : mutation.tileId,
-		mutationId : mutation.mutationId,
-		created : mutation.created,
-		originator : mutation.originator,
-		action : mutation.action,
-		value : mutation.value,
-		fileId : mutation.fileId
-	};
-	return message;
-};
-
-BraidFactory.prototype.newTileMutationResendRequest = function(to, from, tileId, mutationId, fileId) {
-	var message = this.newCastMessage("tile-mutation-resend", to, from);
-	message.data = {
-		tileId : tileId,
-		mutationId : mutationId,
-		fileId : fileId
-	};
-	return message;
-};
-
-BraidFactory.prototype.newTileMutationListRequest = function(to, from, tileId, startingAfter, deliverFull, includeDependencies) {
-	var message = this.newRequest("tile-mutation-list", to, from);
-	message.data = {
-		tileId : tileId,
-		startingAfter : startingAfter,
-		deliverFull : deliverFull,
-		includeDependencies : includeDependencies
-	};
-	return message;
-};
-
-BraidFactory.prototype.newTileMutationListReply = function(requestMessage, from, tileId, mutationDescriptors) {
-	var message = this.newReply(requestMessage, from);
-	message.data = {
-		tileId : tileId,
-		descriptors : mutationDescriptors
-	};
-	return message;
-};
-
-BraidFactory.prototype.newTileInventoryRequest = function(to, from, summaries) {
-	var message = this.newRequest("tile-inventory", to, from);
-	message.data = {
-		summaries : summaries
-	};
-	return message;
-};
-
-BraidFactory.prototype.newTileInventoryReply = function(requestMessage, from, mismatchedTileSummaries, missingTileInfos, upgradeAppDescriptors) {
-	var message = this.newReply(requestMessage, from);
-	message.data = {
-		mismatchedTiles : mismatchedTileSummaries,
-		missingTiles : missingTileInfos,
-		upgradeAvailability : upgradeAppDescriptors
-	};
-	return message;
-};
-
-BraidFactory.prototype.newAppFetchRequest = function(to, from, appId, version, excludeFiles) {
-	var message = this.newRequest("app-fetch", to, from);
-	message.data = {
-		appId : appId,
-		version : version,
-		files : excludeFiles
-	};
-	return message;
-};
-
-BraidFactory.prototype.newFileDescriptorMessage = function(to, from, fileId, contentType) {
-	var message = this.newRequest("expect-blob", to, from);
-	message.data = {
-		fileId : fileId,
-		contentType : contentType
-	};
-	return message;
-};
-
-BraidFactory.prototype.newAppFileDescriptorMessage = function(to, from, appId, version, filePath, contentType) {
-	var message = this.newRequest("expect-app-file", to, from);
-	message.data = {
-		appId : appId,
-		version : version,
-		filePath : filePath,
-		contentType : contentType
-	};
-	return message;
-};
-
-BraidFactory.prototype.newAppFetchReply = function(requestMessage, to, from, appId, version, files) {
-	var message = this.newReply(requestMessage, "app-fetch", to, from);
-	message.data = {
-		appId : appId,
-		version : version,
-		files : files
-	};
-	return message;
-};
-
-BraidFactory.prototype.newLatestMutationSummary = function(mutationId, stateHash) {
+BraidFactory.prototype.newRosterMessageData = function(entries) {
 	return {
-		mutationId : mutationId,
+		entries : entries
+	}
+};
+
+BraidFactory.prototype.newSubscribeMessageData = function(resources) {
+	return {
+		resources : resources
+	}
+};
+
+BraidFactory.prototype.newSharedObjectSummary = function(objectType, objectId, appId, appVersion, mutationCount, stateHash, latestMutationId, remoteAvailable,
+		remoteMatch) {
+	var result = {
+		objectType : objectType,
+		objectId : objectId,
+		mutationCount : mutationCount,
 		stateHash : stateHash
 	};
-};
-
-BraidFactory.prototype.newRemoteMutationSummary = function(available, match) {
-	return {
-		available : available,
-		match : match
-	};
-};
-
-BraidFactory.prototype.newTileSummary = function(tileId, appId, appVersion, mutationCount, stateHash, latestMutationId, remoteMutation) {
-	var result = {
-		tileId : tileId,
-		appId : appId,
-		appVersion : appVersion,
-		mutationCount : mutationCount,
-		stateHash : stateHash,
-		latestMutationId : latestMutationId
-	};
-	if (remoteMutation) {
-		result.remoteMutation = remoteMutation;
+	if (appId) {
+		result.appId = appId;
+	}
+	if (appVersion) {
+		result.appVersion = appVersion;
+	}
+	if (latestMutationId) {
+		result.latestMutationId = latestMutationId;
+	}
+	if (remoteAvailable) {
+		result.remoteAvailable = remoteAvailable;
+	}
+	if (remoteMatch) {
+		result.remoteMatch = remoteMatch;
 	}
 	return result;
 };
 
-BraidFactory.prototype.newTileSummaryFromTileRecord = function(record, remoteMutation) {
-	var summary = this.newTileSummary(record.tileId, record.appId, record.version, 0, 0);
-	if (record.summaryInfo) {
-		summary.mutationCount = record.summaryInfo.mutationCount;
-		summary.stateHash = record.summaryInfo.stateHash;
-		summary.latestMutationId = record.summaryInfo.latestMutationId;
+BraidFactory.prototype.newSynchronizeRequestMessageData = function(summaries) {
+	return {
+		summaries : summaries
 	}
-	if (remoteMutation) {
-		summary.remoteMutation = remoteMutation;
+};
+
+BraidFactory.prototype.newSynchronizeReplyMessageData = function(missing, mismatches) {
+	return {
+		missing : missing,
+		mismatches : mismatches
 	}
-	return summary;
 };
 
-BraidFactory.prototype.newTileMutationDescriptor = function(id, stateHash, resent) {
+BraidFactory.prototype.newFileDescriptor = function(domain, fileId, key) {
 	return {
-		id : id,
-		stateHash : stateHash,
-		resent : resent
-	};
+		domain : domain,
+		fileId : fileId,
+		key : key
+	}
 };
 
-BraidFactory.prototype.newAppDescriptor = function(appId, version) {
-	return {
-		appId : appId,
-		version : version
-	};
-};
-
-BraidFactory.prototype.newTileInfo = function(tileId, appId, version, mutationCount, createdBy, created, members) {
-	return {
-		tileId : tileId,
-		appId : appId,
-		version : version,
-		mutationCount : mutationCount,
-		createdBy : createdBy,
-		created : created,
-		members : members
-	};
-};
-
-BraidFactory.prototype.newTileMutation = function(tileId, mutationId, created, originator, action, value, fileId) {
-	return {
-		tileId : tileId,
+BraidFactory.prototype.newMutation = function(objectType, objectId, mutationId, created, originator, action, value) {
+	var result = {
+		objectType : objectType,
+		objectId : objectId,
 		mutationId : mutationId,
 		created : created,
-		originator : originator,
-		action : action,
-		value : value,
-		fileId : fileId
+		action : action
 	};
+	if (originator) {
+		result.originator = originator;
+	}
+	if (value) {
+		result.value = value;
+	}
+	return result;
 };
 
-BraidFactory.prototype.newTileMutationFromMutationRecord = function(record) {
-	return this.newTileMutation(record.tileId, record.mutationId, record.created, record.originator, record.action, record.value, record.fileId);
-};
-
-BraidFactory.prototype.newTileMutationMemberValue = function(address) {
+BraidFactory.prototype.newMutationListRequestMessageData = function(objectType, objectId, startingAfter, deliverFull) {
 	return {
-		member : address
+		objectType : objectType,
+		objectId : objectId,
+		startingAfter : startingAfter,
+		deliverFull : deliverFull
 	};
 };
 
-BraidFactory.prototype.newTileMutationSetPropertyValue = function(name, type, value, updatedBy, updated) {
+BraidFactory.prototype.newMutationDescriptor = function(id, stateHash, resent) {
+	var result = {
+		id : id,
+		stateHash : stateHash
+	};
+	if (resent) {
+		result.resent = true;
+	}
+	return result;
+};
+
+BraidFactory.prototype.newMutationListReplyMessageData = function(objectType, objectId, descriptors) {
+	return {
+		objectType : objectType,
+		objectId : objectId,
+		descriptors : descriptors
+	};
+};
+
+BraidFactory.prototype.newFederateMessageData = function(token) {
+	return {
+		token : token
+	}
+};
+
+BraidFactory.prototype.newCallbackMessageData = function(token) {
+	return {
+		token : token
+	}
+};
+
+// Mutations
+
+BraidFactory.prototype.newAddMemberMutation = function(objectType, objectId, originator, member) {
+	return this.newMutation(objectType, objectId, newUuid(), DateTime.now(), originator, "member-add", this.newMemberMutationValue(member));
+};
+
+BraidFactory.prototype.newRemoveMemberMutation = function(objectType, objectId, originator, member) {
+	return this.newMutation(objectType, objectId, newUuid(), DateTime.now(), originator, "member-remove", this.newMemberMutationValue(member));
+};
+
+BraidFactory.prototype.newSetPropertyMutation = function(objectType, objectId, originator, name, type, value) {
+	return this.newMutation(objectType, objectId, newUuid(), DateTime.now(), originator, "property-set", this.newSetPropertyMutationValue(name, type, value));
+};
+
+BraidFactory.prototype.newDeletePropertyMutation = function(objectType, objectId, originator, name) {
+	return this.newMutation(objectType, objectId, newUuid(), DateTime.now(), originator, "property-set", this.newDeletePropertyMutationValue(name));
+};
+
+BraidFactory.prototype.newSetRecordMutation = function(objectType, objectId, originator, collection, recordId, sort, value, file) {
+	return this.newMutation(objectType, objectId, newUuid(), DateTime.now(), originator, "record-set", this.newSetRecordMutationValue(collection, recordId,
+			sort, value, file));
+};
+
+BraidFactory.prototype.newReorderRecordMutation = function(objectType, objectId, originator, collection, recordId, sort) {
+	return this.newMutation(objectType, objectId, newUuid(), DateTime.now(), originator, "record-reorder", this.newReorderRecordMutationValue(collection,
+			recordId, sort));
+};
+
+BraidFactory.prototype.newDeleteRecordMutation = function(objectType, objectId, originator, collection, recordId) {
+	return this.newMutation(objectType, objectId, newUuid(), DateTime.now(), originator, "record-delete", this.newDeleteRecordMutationValue(collection,
+			recordId));
+};
+
+BraidFactory.prototype.newSetFileMutation = function(objectType, objectId, originator, fileName, file) {
+	return this.newMutation(objectType, objectId, newUuid(), DateTime.now(), originator, "file-set", this.newSetFileMutationValue(fileName, file));
+};
+
+BraidFactory.prototype.newDeleteFileMutation = function(objectType, objectId, originator, fileName) {
+	return this.newMutation(objectType, objectId, newUuid(), DateTime.now(), originator, "file-delete", this.newDeleteFileMutationValue(fileName, file));
+};
+
+// Mutation Values
+
+BraidFactory.prototype.newMemberMutationValue = function(member) {
+	return {
+		member : member
+	}
+};
+
+BraidFactory.prototype.newSetPropertyMutationValue = function(name, type, value) {
 	return {
 		name : name,
 		type : type,
 		value : value
-	};
+	}
 };
 
-BraidFactory.prototype.newTileMutationDeletePropertyValue = function(name, type, value, updatedBy, updated) {
+BraidFactory.prototype.newDeletePropertyMutationValue = function(name) {
 	return {
 		name : name
-	};
+	}
 };
 
-BraidFactory.prototype.newTileMutationAddMember = function(mutation, address) {
-	var bareAddress = new BraidAddress(address.userId, address.domain);
-	mutation.action = 'member-add';
-	mutation.value = this.newTileMutationMemberValue(bareAddress);
-	return mutation;
-};
-
-BraidFactory.prototype.newTileMutationRemoveMember = function(mutation, memberBrid) {
-	mutation.action = 'member-remove';
-	mutation.value = this.newTileMutationMemberValue(memberBrid);
-	return mutation;
-};
-
-// type: { 'string', 'boolean', 'int', 'float' }
-BraidFactory.prototype.newTileMutationSetProperty = function(mutation, propertyName, type, value) {
-	mutation.action = 'property-set';
-	mutation.value = {
-		name : propertyName,
-		type : type,
-		value : value
-	};
-	return mutation;
-};
-
-BraidFactory.prototype.newPropertyRecord = function(tileId, name, type, value, updatedBy, updated) {
-	return {
-		tileId : tileId,
-		name : name,
-		type : type,
-		value : value,
-		updatedBy : updatedBy,
-		updated : updated
-	};
-};
-
-BraidFactory.prototype.newTileMutationSetRecordValue = function(collection, recordId, sort, value, fileId, updatedBy, updated) {
-	return {
-		collection : collection,
-		recordId : recordId,
-		sort : sort,
-		value : value,
-		fileId : fileId
-	};
-};
-
-BraidFactory.prototype.newTileMutationSetRecordPositionValue = function(collection, recordId, sort) {
-	return {
+BraidFactory.prototype.newSetRecordMutationValue = function(collection, recordId, sort, value, file) {
+	var result = {
 		collection : collection,
 		recordId : recordId,
 		sort : sort
 	};
+	if (value) {
+		result.value = value;
+	}
+	if (file) {
+		result.file = file;
+	}
+	return result;
 };
 
-BraidFactory.prototype.newTileMutationDeleteRecordValue = function(record) {
+BraidFactory.prototype.newDeleteRecordMutationValue = function(collection, recordId) {
 	return {
-		collection : record.collection,
-		recordId : record.recordId
-	};
+		collection : collection,
+		recordId : recordId
+	}
 };
 
-BraidFactory.prototype.newCollectionRecord = function(tileId, collection, recordId, sort, value, fileId, updatedBy, updated) {
+BraidFactory.prototype.newReorderRecordMutationValue = function(collection, recordId, sort) {
 	return {
-		tileId : tileId,
 		collection : collection,
 		recordId : recordId,
-		sort : sort,
+		sort : sort
+	}
+};
+
+BraidFactory.prototype.newSetFileMutationValue = function(fileName, file) {
+	return {
+		fileName : fileName,
+		file : file
+	}
+};
+
+BraidFactory.prototype.newDeleteFileMutationValue = function(fileName) {
+	return {
+		fileName : fileName
+	}
+};
+
+// Utils
+
+BraidFactory.prototype.base64Encode = function(value) {
+	if (typeof Buffer === 'undefined') {
+		return btoa(value);
+	} else {
+		var buf = new Buffer(value);
+		return buf.toString('base64');
+	}
+};
+
+// Database records
+
+BraidFactory.prototype.newPropertyRecord = function(objectType, objectId, name, type, value, updatedBy, updated) {
+	return {
+		objectType : objectType,
+		objectId : objectId,
+		name : name,
+		type : type,
 		value : value,
-		fileId : fileId,
 		updatedBy : updatedBy,
 		updated : updated
 	};
 };
 
-BraidFactory.prototype.newTileMutationMemberValue = function(member) {
+BraidFactory.prototype.newCollectionRecord = function(objectType, objectId, collection, recordId, sort, value, file, updatedBy, updated) {
 	return {
-		member : member
+		objectType : objectType,
+		objectId : objectId,
+		collection : collection,
+		recordId : recordId,
+		sort : sort,
+		value : value,
+		file : file,
+		updatedBy : updatedBy,
+		updated : updated
 	};
 };
 
-BraidFactory.prototype.newTileMutationSetFileValue = function(fileName, fileId) {
+BraidFactory.prototype.newFileRecord = function(objectType, objectId, fileName, file) {
 	return {
+		objectType : objectType,
+		objectId : objectId,
 		fileName : fileName,
-		fileId : fileId
+		file : file
 	};
-};
-
-BraidFactory.prototype.newTileMutationDeleteFileValue = function(fileName) {
-	return {
-		fileName : fileName
-	};
-};
-
-BraidFactory.prototype.newFileRecord = function(tileId, fileName, fileId) {
-	return {
-		tileId : tileId,
-		fileName : fileName,
-		fileId : fileId
-	};
-};
-
-BraidFactory.prototype.newPresenceEntry = function(address, online) {
-	return {
-		address : address,
-		online : online
-	};
-};
-
-BraidFactory.prototype.newPresenceMessage = function(presence, to, from) {
-	var message = this.newCastMessage("presence", to, from);
-	message.data = presence;
-	return message;
 };
 
 BraidFactory.prototype.newAccountRecord = function(userId, domain, passwordHash) {
@@ -551,20 +513,24 @@ BraidFactory.prototype.newSubscriptionRecord = function(targetUserId, targetDoma
 	};
 };
 
-BraidFactory.prototype.newTileRecordFromInfo = function(tileInfo, summaryInfo) {
+BraidFactory.prototype.newSharedObjectRecord = function(objectType, objectId, sharingType, sharedWithUser, sharedWithGroupId, appId, appVersion,
+		pendingMutationCount, createdBy, created, summaryInfo) {
 	return {
-		tileId : tileInfo.tileId,
-		appId : tileInfo.appId,
-		version : tileInfo.version,
-		pendingMutationCount : tileInfo.pendingMutationCount,
-		createdBy : tileInfo.createdBy,
-		created : tileInfo.created,
-		members : [],
+		objectType : objectType,
+		objectId : objectId,
+		sharingType : sharingType,
+		sharedWithUser : sharedWithUser,
+		sharedWithGroupId : sharedWithGroupId,
+		appId : appId,
+		appVersion : appVersion,
+		pendingMutationCount : pendingMutationCount,
+		createdBy : createdBy,
+		created : created,
 		summaryInfo : summaryInfo
 	};
 };
 
-BraidFactory.prototype.newTileRecordSummaryInfo = function(mutationCount, stateHash, latestMutationId, latestMutationCreated, latestMutationOriginator) {
+BraidFactory.prototype.newSharedObjectRecordSummaryInfo = function(mutationCount, stateHash, latestMutationId, latestMutationCreated, latestMutationOriginator) {
 	return {
 		mutationCount : mutationCount,
 		stateHash : stateHash,
@@ -576,31 +542,30 @@ BraidFactory.prototype.newTileRecordSummaryInfo = function(mutationCount, stateH
 	};
 };
 
-BraidFactory.prototype.newUserTileRecord = function(userId, tileId) {
+BraidFactory.prototype.newUserObjectRecord = function(userId, objectType, objectId) {
 	return {
 		userId : userId,
-		tileId : tileId
+		objectType : objectType,
+		objectId : objectId
 	};
 };
 
-BraidFactory.prototype.newMutationRecord = function(tileId, mutationId, created, originator, action, value, fileId, stateHash, previousValue, integrated, index) {
+BraidFactory.prototype.newMutationRecord = function(objectType, objectId, mutationId, created, originator, action, value, file, stateHash, previousValue,
+		integrated, index) {
 	return {
-		tileId : tileId,
+		objectType : objectType,
+		objectId : objectId,
 		mutationId : mutationId,
 		created : created,
 		originator : originator,
 		action : action,
 		value : value,
-		fileId : fileId,
+		file : file,
 		stateHash : stateHash,
 		previousValue : previousValue,
 		integrated : integrated,
 		index : index
 	};
-};
-
-BraidFactory.prototype.newUnhandledMessageErrorReply = function(message, from) {
-	return this.newErrorReply(message, 400, "Message type is unrecognized or unhandled", from);
 };
 
 var factory = new BraidFactory();
