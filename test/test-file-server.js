@@ -17,13 +17,13 @@ describe('file-server:', function() {
 	before(function(done) {
 		config1 = createTestConfig('test.26111', 'test1', 26101, 26111);
 		createTestServicesWithStubs(config1, function(err, svcs) {
-			assert(!err);
+			assert(!err, err);
 			services1 = svcs;
 			fileServer1 = new FileServer();
 			fileServer1.initialize(config1, services1);
 			config2 = createTestConfig('test.26211', 'test2', 26201, 26211);
 			createTestServicesWithStubs(config2, function(err, svcs) {
-				assert(!err);
+				assert(!err, err);
 				services2 = svcs;
 				fileServer2 = new FileServer();
 				fileServer2.initialize(config2, services2);

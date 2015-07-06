@@ -51,7 +51,7 @@ BraidFactory.prototype.newMessage = function(id, type, request, from, to, code, 
 		result.message = message;
 	}
 	if (data) {
-		message.data = data;
+		result.data = data;
 	}
 	return result;
 };
@@ -64,11 +64,15 @@ BraidFactory.prototype.newRequestMessage = function(request, from, to, data) {
 	return this.newMessage(messageId++, "request", request, from, to, null, null, data);
 };
 
-BraidFactory.prototype.newReplyMessage = function(requestMessage, from, data) {
-	return this.newMessage(requestMessage.id, "reply", requestMessage.request, from, requestMessage.from, null, null, data);
+BraidFactory.prototype.newReplyMessage = function(requestMessage, from, data, to) {
+	var toField = requestMessage.from;
+	if (to) {
+		toField = to;
+	}
+	return this.newMessage(requestMessage.id, "reply", requestMessage.request, from, toField, null, null, data);
 };
 
-BraidFactory.prototype.newErrorMessage = function(requestMessage, from, code, message) {
+BraidFactory.prototype.newErrorReplyMessage = function(requestMessage, from, code, message) {
 	return this.newMessage(requestMessage.id, "error", requestMessage.request, from, requestMessage.from, code, message, null);
 };
 
@@ -78,20 +82,20 @@ BraidFactory.prototype.newUnhandledMessageErrorReply = function(requestMessage, 
 
 // All various braid message objects
 
-BraidFactory.prototype.newAuthRequestMessage = function(user, password) {
-	return this.newRequestMessage("auth", null, this.newCredentialMessageData(user, password));
+BraidFactory.prototype.newAuthRequestMessage = function(user, password, to, from) {
+	return this.newRequestMessage("auth", from, to, this.newCredentialMessageData(user, password));
 };
 
-BraidFactory.prototype.newAuthReplyMessage = function(requestMessage, from) {
-	return this.newReplyMessage(requestMessage, from, null);
+BraidFactory.prototype.newAuthReplyMessage = function(requestMessage, from, to) {
+	return this.newReplyMessage(requestMessage, from, null, to);
 };
 
-BraidFactory.prototype.newRegisterRequestMessage = function(user, password) {
-	return this.newRequestMessage("register", null, this.newCredentialMessageData(user, password));
+BraidFactory.prototype.newRegisterRequestMessage = function(user, password, to, from) {
+	return this.newRequestMessage("register", from, to, this.newCredentialMessageData(user, password));
 };
 
-BraidFactory.prototype.newRegisterReplyMessage = function(requestMessage, from) {
-	return this.newReplyMessage(requestMessage, from, null);
+BraidFactory.prototype.newRegisterReplyMessage = function(requestMessage, from, to) {
+	return this.newReplyMessage(requestMessage, from, null, to);
 };
 
 BraidFactory.prototype.newHelloRequestMessage = function(from, to, product, version, capabilities) {
@@ -106,16 +110,16 @@ BraidFactory.prototype.newIMMessage = function(from, to, text) {
 	return this.newCastMessage("im", from, to, this.newIMMessageData(text));
 };
 
-BraidFactory.prototype.newPresenceMessage = function(from, to, address, online) {
-	return this.newCastMessage("presence", from, to, this.newPresenceMessageData(address, online));
+BraidFactory.prototype.newPresenceMessage = function(from, to, presenceData) {
+	return this.newCastMessage("presence", from, to, presenceData);
 };
 
 BraidFactory.prototype.newRosterRequestMessage = function(from, to) {
 	return this.newRequestMessage("roster", from, to, null);
 };
 
-BraidFactory.prototype.newRosterReplyMessage = function(requestMessage, from, data) {
-	return this.newReplyMessage(requestMessage, from, data);
+BraidFactory.prototype.newRosterReplyMessage = function(requestMessage, from, entries) {
+	return this.newReplyMessage(requestMessage, from, this.newRosterMessageData(entries));
 };
 
 BraidFactory.prototype.newPingRequestMessage = function(from, to) {
@@ -171,21 +175,23 @@ BraidFactory.prototype.newCallbackReplyMessage = function(requestMessage, from) 
 };
 
 BraidFactory.prototype.newCloseRequestMessage = function(from, to) {
-	return this.newRequestMessage("close", to, from, null);
+	return this.newRequestMessage("close", from, to, null);
+};
+
+BraidFactory.prototype.newCloseReplyMessage = function(requestMessage, from) {
+	return this.newReplyMessage(requestMessage, from, null);
 };
 
 // Data objects used in the 'data' member of messages
 
-BraidFactory.prototype.newCredentialMessageData(user, password)
-{
+BraidFactory.prototype.newCredentialMessageData = function(user, password) {
 	return {
 		user : user,
 		password : this.base64Encode(password)
 	};
 };
 
-BraidFactory.prototype.newHelloMessageData(product, version, capabilities)
-{
+BraidFactory.prototype.newHelloMessageData = function(product, version, capabilities) {
 	var result = {
 		product : product,
 		version : version
@@ -196,15 +202,13 @@ BraidFactory.prototype.newHelloMessageData(product, version, capabilities)
 	return result;
 };
 
-BraidFactory.prototype.newIMMessageData(text)
-{
+BraidFactory.prototype.newIMMessageData = function(text) {
 	return {
 		message : text
 	};
 };
 
-BraidFactory.prototype.newPresenceMessageData(address, online)
-{
+BraidFactory.prototype.newPresenceMessageData = function(address, online) {
 	return {
 		address : address,
 		online : online
@@ -457,6 +461,111 @@ BraidFactory.prototype.base64Encode = function(value) {
 
 // Database records
 
+BraidFactory.prototype.newAccountRecord = function(userId, domain, passwordHash) {
+	return {
+		userId : userId,
+		domain : domain,
+		password : passwordHash
+	};
+};
+
+BraidFactory.prototype.newSubscriptionRecord = function(targetUserId, targetDomain, subscriberUserId, subscriberDomain) {
+	return {
+		target : {
+			userId : targetUserId,
+			domain : targetDomain
+		},
+		subscriber : {
+			userId : subscriberUserId,
+			domain : subscriberDomain
+		}
+	};
+};
+
+BraidFactory.prototype.newUserObjectRecord = function(userId, objectType, objectId) {
+	return {
+		userId : userId,
+		objectType : objectType,
+		objectId : objectId
+	};
+};
+
+BraidFactory.prototype.newObjectSummaryInfo = function(mutationCount, stateHash, latestMutationId, latestMutationCreated, latestMutationOriginator) {
+	return {
+		mutationCount : mutationCount,
+		stateHash : stateHash,
+		latestMutation : {
+			mutationId : latestMutationId,
+			created : latestMutationCreated,
+			originator : latestMutationOriginator
+		}
+	};
+};
+
+BraidFactory.prototype.newTileRecord = function(tileId, appId, appVersion, pendingMutationCount, createdBy, created, objectSummaryInfo) {
+	return {
+		tileId : tileId,
+		appId : appId,
+		appVersion : appVersion,
+		pendingMutationCount : pendingMutationCount,
+		createdBy : createdBy,
+		created : created,
+		summaryInfo : objectSummaryInfo
+	};
+};
+
+BraidFactory.prototype.newGroupRecord = function(groupId, pendingMutationCount, createdBy, created, objectSummaryInfo, members) {
+	if (!members) {
+		members = [];
+	}
+	return {
+		tileId : tileId,
+		pendingMutationCount : pendingMutationCount,
+		createdBy : createdBy,
+		created : created,
+		summaryInfo : objectSummaryInfo,
+		members : members
+	};
+};
+
+BraidFactory.prototype.newSharedObjectRecord = function(objectType, objectId, sharingType, sharedWithUser, sharedWithGroupId) {
+	return {
+		objectType : objectType,
+		objectId : objectId,
+		sharingType : sharingType,
+		sharedWithUser : sharedWithUser,
+		sharedWithGroupId : sharedWithGroupId
+	};
+};
+
+BraidFactory.prototype.newMutationRecord = function(objectType, objectId, mutationId, created, originator, action, value, file, stateHash, previousValue,
+		integrated, index) {
+	return {
+		objectType : objectType,
+		objectId : objectId,
+		mutationId : mutationId,
+		created : created,
+		originator : originator,
+		action : action,
+		value : value,
+		file : file,
+		stateHash : stateHash,
+		previousValue : previousValue,
+		integrated : integrated,
+		index : index
+	};
+};
+
+BraidFactory.prototype.newFileRecord = function(objectType, objectId, name, file, updatedBy, updated) {
+	return {
+		objectType : objectType,
+		objectId : objectId,
+		file : file,
+		updatedBy : updatedBy,
+		updated : updated
+	};
+};
+
 BraidFactory.prototype.newPropertyRecord = function(objectType, objectId, name, type, value, updatedBy, updated) {
 	return {
 		objectType : objectType,
@@ -489,82 +598,6 @@ BraidFactory.prototype.newFileRecord = function(objectType, objectId, fileName, 
 		objectId : objectId,
 		fileName : fileName,
 		file : file
-	};
-};
-
-BraidFactory.prototype.newAccountRecord = function(userId, domain, passwordHash) {
-	return {
-		userId : userId,
-		domain : domain,
-		password : passwordHash
-	};
-};
-
-BraidFactory.prototype.newSubscriptionRecord = function(targetUserId, targetDomain, subscriberUserId, subscriberDomain) {
-	return {
-		target : {
-			userId : targetUserId,
-			domain : targetDomain
-		},
-		subscriber : {
-			userId : subscriberUserId,
-			domain : subscriberDomain
-		}
-	};
-};
-
-BraidFactory.prototype.newSharedObjectRecord = function(objectType, objectId, sharingType, sharedWithUser, sharedWithGroupId, appId, appVersion,
-		pendingMutationCount, createdBy, created, summaryInfo) {
-	return {
-		objectType : objectType,
-		objectId : objectId,
-		sharingType : sharingType,
-		sharedWithUser : sharedWithUser,
-		sharedWithGroupId : sharedWithGroupId,
-		appId : appId,
-		appVersion : appVersion,
-		pendingMutationCount : pendingMutationCount,
-		createdBy : createdBy,
-		created : created,
-		summaryInfo : summaryInfo
-	};
-};
-
-BraidFactory.prototype.newSharedObjectRecordSummaryInfo = function(mutationCount, stateHash, latestMutationId, latestMutationCreated, latestMutationOriginator) {
-	return {
-		mutationCount : mutationCount,
-		stateHash : stateHash,
-		latestMutation : {
-			mutationId : latestMutationId,
-			created : latestMutationCreated,
-			originator : latestMutationOriginator
-		}
-	};
-};
-
-BraidFactory.prototype.newUserObjectRecord = function(userId, objectType, objectId) {
-	return {
-		userId : userId,
-		objectType : objectType,
-		objectId : objectId
-	};
-};
-
-BraidFactory.prototype.newMutationRecord = function(objectType, objectId, mutationId, created, originator, action, value, file, stateHash, previousValue,
-		integrated, index) {
-	return {
-		objectType : objectType,
-		objectId : objectId,
-		mutationId : mutationId,
-		created : created,
-		originator : originator,
-		action : action,
-		value : value,
-		file : file,
-		stateHash : stateHash,
-		previousValue : previousValue,
-		integrated : integrated,
-		index : index
 	};
 };
 

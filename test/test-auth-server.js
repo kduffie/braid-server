@@ -59,10 +59,10 @@ describe("auth-server:", function() {
 	});
 
 	it("verifies registration and auth", function(done) {
-		var registerMessage = services.factory.newRegisterRequest(userAddress.userId, "pa55word", authAddress, portAddress);
+		var registerMessage = services.factory.newRegisterRequestMessage(userAddress.userId, "pa55word", authAddress, portAddress);
 		expectedType = 'register';
 		handlerCallback = function() {
-			var authMessage = services.factory.newAuthRequest(userAddress.userId, "pa55word", authAddress, portAddress);
+			var authMessage = services.factory.newAuthRequestMessage(userAddress.userId, "pa55word", authAddress, portAddress);
 			expectedType = 'auth';
 			services.messageSwitch.deliver(authMessage);
 			handlerCallback = done;

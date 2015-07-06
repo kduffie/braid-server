@@ -50,15 +50,15 @@ BraidClient.prototype.connect = function(callback) {
 	}
 };
 
-BraidClient.prototype.sendHello = function(payload, callback) {
-	var hello = factory.newHelloRequest(payload, this.address);
+BraidClient.prototype.sendHello = function(product, version, capabilities, callback) {
+	var hello = factory.newHelloRequestMessage(this.address, null, product, version, capabilities);
 	this.sendRequest(hello, callback);
 };
 
 BraidClient.prototype.register = function(userId, password, callback) {
 	this.userId = userId;
 	console.log(this.userId + ": register", userId);
-	var request = factory.newRegisterRequest(userId, password);
+	var request = factory.newRegisterRequestMessage(userId, password);
 	this.sendRequest(request, function(err, reply) {
 		if (err) {
 			if (callback) {
@@ -99,7 +99,7 @@ BraidClient.prototype.getErrorDisplay = function(reply) {
 BraidClient.prototype.authenticate = function(userId, password, callback) {
 	this.userId = userId;
 	console.log(this.userId + ": authenticate", userId);
-	var request = factory.newAuthRequest(userId, password);
+	var request = factory.newAuthRequestMessage(userId, password);
 	this.sendRequest(request, function(err, reply) {
 		if (err) {
 			if (callback) {
@@ -158,7 +158,7 @@ BraidClient.prototype.parseAddressEntry = function(value) {
 BraidClient.prototype.pingEndpoint = function(address, callback) {
 	console.log(this.userId + ": pingEndpoint", address);
 	to = this.parseAddressEntry(address);
-	var request = factory.newPingRequest(to);
+	var request = factory.newPingRequestMessage(null, to);
 	this.sendRequest(request, function(err, reply) {
 		if (err) {
 			if (callback) {
@@ -174,27 +174,27 @@ BraidClient.prototype.pingEndpoint = function(address, callback) {
 
 BraidClient.prototype.sendTextMessage = function(user, textMessage) {
 	var to = this.parseAddressEntry(user);
-	var message = factory.newTextMessage(textMessage, to);
+	var message = factory.newIMMessage(null, to, textMessage);
 	this.sendMessage(message);
 };
 
 BraidClient.prototype.requestRoster = function(callback) {
 	console.log(this.userId + ": requestRoster");
-	var cast = factory.newRosterRequest();
+	var cast = factory.newRosterRequestMessage();
 	this.sendRequest(cast, callback);
 };
 
 BraidClient.prototype.subscribe = function(user) {
 	console.log(this.userId + ": subscribe", user);
 	var to = this.parseAddressEntry(user);
-	var cast = factory.newSubscribeMessage(to);
+	var cast = factory.newSubscribeMessage(null, to);
 	this.sendCast(cast);
 };
 
 BraidClient.prototype.unsubscribe = function(user) {
 	console.log(this.userId + ": unsubscribe", user);
 	var to = this.parseAddressEntry(user);
-	var cast = factory.newUnsubscribeMessage(to);
+	var cast = factory.newUnsubscribeMessage(null, to);
 	this.sendCast(cast);
 };
 
@@ -321,7 +321,7 @@ BraidClient.prototype.handlePresence = function(message) {
 	}
 };
 BraidClient.prototype.handlePingRequest = function(message) {
-	var reply = factory.newReply(message, this.address, message.from);
+	var reply = factory.newPingReplyMessage(message, this.address);
 	this.sendReply(reply);
 };
 

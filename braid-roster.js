@@ -86,13 +86,13 @@ RosterManager.prototype._notifyPresence = function(presenceEntry, includeForeign
 			}
 		}
 		async.each(localUsers, function(localUser, callback) {
-			var presenceMessage = this.factory.newPresenceMessage(presenceEntry, localUser, this.rosterAddress);
+			var presenceMessage = this.factory.newPresenceMessage(this.rosterAddress, localUser, presenceEntry);
 			this.messageSwitch.deliver(presenceMessage);
 			callback();
 		}.bind(this));
 		if (includeForeign) {
 			async.each(foreignDomains, function(foreignDomain, callback) {
-				var presenceMessage = this.factory.newPresenceMessage(presenceEntry, new BraidAddress(null, foreignDomain), this.rosterAddress);
+				var presenceMessage = this.factory.newPresenceMessage(this.rosterAddress, new BraidAddress(null, foreignDomain), presenceEntry);
 				this.messageSwitch.deliver(presenceMessage);
 				callback();
 			}.bind(this));
@@ -117,7 +117,7 @@ RosterManager.prototype._handleRosterMessage = function(message) {
 				entries.push(entry);
 				callback();
 			}.bind(this), function(err) {
-				var reply = this.factory.newRosterReply(message, entries, this.rosterAddress);
+				var reply = this.factory.newRosterReplyMessage(message, this.rosterAddress, entries);
 				this.messageSwitch.deliver(reply);
 			}.bind(this));
 		}.bind(this));
@@ -179,7 +179,7 @@ RosterManager.prototype._onForeignClientSessionClosed = function(entry) {
 
 RosterManager.prototype._onClientSessionActivated = function(session) {
 	console.log("braid-roster: onClientSessionActivated", session.userAddress);
-	var entry = this.factory.newPresenceEntry(session.userAddress, true);
+	var entry = this.factory.newPresenceMessageData(session.userAddress, true);
 	var address = newAddress(session.userAddress, true);
 	var activeUser = this.getOrCreateActiveUser(address);
 	activeUser.resources.push(session.userAddress.resource);
@@ -188,7 +188,7 @@ RosterManager.prototype._onClientSessionActivated = function(session) {
 
 RosterManager.prototype._onClientSessionClosed = function(session) {
 	if (session.userAddress) {
-		var entry = this.factory.newPresenceEntry(session.userAddress, false);
+		var entry = this.factory.newPresenceMessageData(session.userAddress, false);
 		var address = newAddress(session.userAddress, true);
 		var key = address.asString();
 		var activeUser = this.activeUsers[key];

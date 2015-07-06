@@ -47,7 +47,7 @@ FederationSession.prototype.initializeBasedOnOutbound = function(domain, connect
 	this.initializeSocket();
 	this.token = newUuid();
 	this.manager.pendingTokensByDomain[domain] = this.token;
-	var federateRequest = this.factory.newFederateMessage(this.token, new BraidAddress(null, domain, null), this.domainAddress);
+	var federateRequest = this.factory.newFederateRequestMessage(this.domainAddress, new BraidAddress(null, domain, null), this.token);
 	this.sendMessage(federateRequest);
 	this.state = 'outbound-idle';
 	// That should be it. The far end should close the socket once they
@@ -69,7 +69,7 @@ FederationSession.prototype.initializeBasedOnFederationRequest = function(foreig
 	this.initializeSocket();
 	this.foreignDomain = foreignDomain;
 	this.state = 'pending-callback';
-	var callbackMessage = this.factory.newCallbackRequest(token, new BraidAddress(null, foreignDomain), this.domainAddress);
+	var callbackMessage = this.factory.newCallbackRequestMessage(this.domainAddress, new BraidAddress(null, foreignDomain), token);
 	this.pendingCallbackId = callbackMessage.id;
 	this.sendMessage(callbackMessage);
 };
@@ -89,11 +89,11 @@ FederationSession.prototype.onSocketMessageReceived = function(msg) {
 		console.log("federation: " + this.config.domain + ":  RX (" + this.foreignDomain + ")", message);
 	}
 	if (!message.type) {
-		this.sendErrorResponseIfAppropriate(message, "Invalid message.  Missing type.", 400, true);
+		this.sendErrorResponseIfAppropriate(message, new BraidAddress(null, this.config.domain), "Invalid message.  Missing type.", 400, true);
 		return;
 	}
 	if (!message.request) {
-		this.sendErrorResponseIfAppropriate(message, "Invalid message.  Missing request.", 400, true);
+		this.sendErrorResponseIfAppropriate(message, new BraidAddress(null, this.config.domain), "Invalid message.  Missing request.", 400, true);
 		return;
 	}
 	if (message.to) {
@@ -102,18 +102,18 @@ FederationSession.prototype.onSocketMessageReceived = function(msg) {
 		}
 	}
 	if (!message.from) {
-		this.sendErrorResponseIfAppropriate(message, "Invalid message.  Missing from.", 400, true);
+		this.sendErrorResponseIfAppropriate(message, new BraidAddress(null, this.config.domain), "Invalid message.  Missing from.", 400, true);
 		return;
 	}
 	if (this.foreignDomain && message.from.domain !== this.foreignDomain) {
-		this.sendErrorResponseIfAppropriate(message, "Message is not from negotiated domain.  Forwarding not acceptable.", 406, false);
+		this.sendErrorResponseIfAppropriate(message, new BraidAddress(null, this.config.domain),
+				"Message is not from negotiated domain.  Forwarding not acceptable.", 406, false);
 		return;
 	}
 	if (message.request === 'hello') {
 		this.federationHello = message;
 		var package = require('./package.json');
-		var reply = this.factory.newHelloReply(message, this.factory.newHelloPayload(package.product, package.version, this.config.federation.capabilities),
-				this.domainAddress);
+		var reply = this.factory.newHelloReplyMessage(message, this.domainAddress, package.product, package.version, this.config.federation.capabilities);
 		this.sendMessage(reply);
 	} else {
 		try {
@@ -127,12 +127,21 @@ FederationSession.prototype.onSocketMessageReceived = function(msg) {
 					this.handleCallbackRequest(message);
 					break;
 				default:
-					this.sendErrorResponseIfAppropriate(message, "Invalid message in this state (unauthenticated)", 400, true);
+					this.sendErrorResponseIfAppropriate(message, new BraidAddress(null, this.config.domain), "Invalid message in this state (unauthenticated)",
+							400, true);
 					break;
 				}
 				break;
 			case 'outbound-idle':
-				this.sendErrorResponseIfAppropriate(message, "Invalid message in this state (outbound-idle)", 400, true);
+				switch (message.type) {
+				case 'reply':
+					this.handleFederateReply(message);
+					break;
+				default:
+					this.sendErrorResponseIfAppropriate(message, new BraidAddress(null, this.config.domain), "Invalid message in this state (outbound-idle)",
+							400, true);
+					break;
+				}
 				break;
 			case 'pending-callback':
 				switch (message.type) {
@@ -142,7 +151,8 @@ FederationSession.prototype.onSocketMessageReceived = function(msg) {
 					}
 					break;
 				default:
-					this.sendErrorResponseIfAppropriate(message, "Invalid message in this state (pending-callback)", 400, true);
+					this.sendErrorResponseIfAppropriate(message, new BraidAddress(null, this.config.domain),
+							"Invalid message in this state (pending-callback)", 400, true);
 					break;
 				}
 				break;
@@ -177,12 +187,13 @@ FederationSession.prototype.onSocketMessageReceived = function(msg) {
 				this.messageSwitch.deliver(message);
 				break;
 			default:
-				this.sendErrorResponseIfAppropriate(message, "federation: " + this.config.domain + ": Invalid state: " + this.state, 400, true);
+				this.sendErrorResponseIfAppropriate(message, new BraidAddress(null, this.config.domain), "federation: " + this.config.domain
+						+ ": Invalid state: " + this.state, 400, true);
 				break;
 			}
 		} catch (err) {
 			console.error("federation.onSocketMessageReceived", err, err.stack);
-			this.sendErrorResponseIfAppropriate(message, "Internal error: " + err, 500, true);
+			this.sendErrorResponseIfAppropriate(message, new BraidAddress(null, this.config.domain), "Internal error: " + err, 500, true);
 		}
 	}
 };
@@ -190,7 +201,7 @@ FederationSession.prototype.onSocketMessageReceived = function(msg) {
 FederationSession.prototype.handleCloseRequest = function(message) {
 	this.deactivateSession();
 	setTimeout(function() {
-		var reply = this.factory.newReply(message, this.domainAddress);
+		var reply = this.factory.newCloseReplyMessage(message, this.domainAddress);
 		this.sendMessage(reply);
 	}.bind(this), 500);
 };
@@ -228,7 +239,7 @@ FederationSession.prototype.deactivateSession = function() {
 
 FederationSession.prototype.handleFederateRequest = function(message) {
 	if (this.type !== 'inbound') {
-		this.sendErrorResponseIfAppropriate(message, "Invalid message on socket we initiated", 400, true);
+		this.sendErrorResponseIfAppropriate(message, new BraidAddress(null, this.config.domain), "Invalid message on socket we initiated", 400, true);
 		return;
 	}
 	var token = null;
@@ -253,19 +264,23 @@ FederationSession.prototype.handleFederateRequest = function(message) {
 					console.warn("Unable to establish connection to foreign domain: " + message.from.domain, err);
 					delete this.manager.pendingTransmitQueuesByDomain[domain];
 				}.bind(this));
-				var reply = this.factory.newReply(message, this.domainAddress);
+				var reply = this.factory.newFederateReplyMessage(message, this.domainAddress);
 				this.sendMessage(reply);
 				setTimeout(this.close.bind(this), 300);
 			}
 		}.bind(this));
 	} else {
-		this.sendErrorResponseIfAppropriate(message, "Invalid federate request.  Missing token.", 400, false);
+		this.sendErrorResponseIfAppropriate(message, new BraidAddress(null, this.config.domain), "Invalid federate request.  Missing token.", 400, false);
 	}
+};
+
+FederationSession.prototype.handleFederateReply = function(message) {
+	this.close();
 };
 
 FederationSession.prototype.handleCallbackRequest = function(message) {
 	if (this.type !== 'inbound') {
-		this.sendErrorResponseIfAppropriate(message, "Invalid message on socket we initiated", 400, true);
+		this.sendErrorResponseIfAppropriate(message, new BraidAddress(null, this.config.domain), "Invalid message on socket we initiated", 400, true);
 		return;
 	}
 	var token;
@@ -275,10 +290,10 @@ FederationSession.prototype.handleCallbackRequest = function(message) {
 	var domain = message.from.domain;
 	var pendingToken = this.manager.pendingTokensByDomain[domain];
 	if (pendingToken && pendingToken === token) {
-		this.sendMessage(this.factory.newReply(message, this.domainAddress, new BraidAddress(null, domain)));
+		this.sendMessage(this.factory.newCallbackReplyMessage(message, this.domainAddress));
 		this.activateSession(domain);
 	} else {
-		this.sendErrorResponseIfAppropriate(message, "This is not a valid federation token", 401, true);
+		this.sendErrorResponseIfAppropriate(message, new BraidAddress(null, this.config.domain), "This is not a valid federation token", 401, true);
 	}
 };
 
@@ -292,9 +307,9 @@ FederationSession.prototype.parseMessage = function(text) {
 	}
 };
 
-FederationSession.prototype.sendErrorResponseIfAppropriate = function(message, errorMessage, errorCode, close) {
+FederationSession.prototype.sendErrorResponseIfAppropriate = function(message, from, errorMessage, errorCode, close) {
 	if (message.type === 'request' || message.type === 'cast') {
-		var reply = this.factory.newErrorReply(message, errorCode, errorMessage);
+		var reply = this.factory.newErrorReplyMessage(message, from, errorCode, errorMessage);
 		this.sendMessage(reply, function() {
 			if (close) {
 				this.close();
@@ -348,11 +363,17 @@ FederationSession.prototype.kickTransmit = function() {
 };
 
 FederationSession.prototype.closeBecauseIdle = function() {
-	console.log("federation: " + this.config.domain + ":  idle: closing connection with " + this.foreignDomain + ' because idle');
 	if (this.foreignDomain) {
-		this.state = 'closing';
-		var message = this.factory.newCloseRequest(new BraidAddress(null, this.foreignDomain), this.domainAddress);
-		this.sendMessage(message);
+		if (this.state === 'active') {
+			console
+					.log("federation: " + this.config.domain + ":  idle: closing connection with " + this.foreignDomain + ' because idle.  State: '
+							+ this.state);
+			this.state = 'closing';
+			var message = this.factory.newCloseRequestMessage(this.domainAddress, new BraidAddress(null, this.foreignDomain));
+			this.sendMessage(message);
+		} else {
+			this.close();
+		}
 	} else {
 		this.close();
 	}
@@ -363,7 +384,7 @@ FederationSession.prototype.close = function() {
 };
 
 FederationSession.prototype.finalize = function() {
-	console.log("federation: " + this.config.domain + ": cleaning up after connection with " + this.foreignDomain);
+	console.log("federation: " + this.config.domain + ": cleaning up after connection with " + this.foreignDomain + " State: " + this.state);
 	this.state = 'closed';
 	delete this.manager.sessionsById[this.id];
 	if (this.foreignDomain) {
@@ -428,7 +449,6 @@ FederationManager.prototype.initialize = function(config, services) {
 			}
 		}
 		for (var i = 0; i < toClose.length; i++) {
-			console.log("federation:  " + this.config.domain + ": closing federation session to " + this.sessionsById.foreignDomain + " because IDLE");
 			this.sessionsById[toClose[i]].closeBecauseIdle();
 		}
 	}.bind(this), idlePoll);
@@ -448,7 +468,7 @@ FederationManager.prototype.initiateFederation = function(domain) {
 			console.error("Failure resolving domain", domain);
 		} else {
 			var session = new FederationSession(this);
-			console.log("federation:  " + this.config.domain + ": initiating connection to " + domain + " at " + connectionUrl);
+			console.log("federation:  " + this.config.domain + ": initiating federation connection to " + domain + " at " + connectionUrl);
 			var ws = new WebSocket(connectionUrl);
 			ws.on('open', function() {
 				session.initializeBasedOnOutbound(domain, ws);

@@ -37,7 +37,7 @@ describe('blackbox: federation', function() {
 				client1PresenceNotifications.push(presenceMessage);
 			});
 			client1.connect(function(err) {
-				assert(!err);
+				assert(!err, err);
 				client1.register("joe", "password", callback);
 			});
 		});
@@ -47,7 +47,7 @@ describe('blackbox: federation', function() {
 				client2PresenceNotifications.push(presenceMessage);
 			});
 			client2.connect(function(err) {
-				assert(!err);
+				assert(!err, err);
 				client2.register("bob", "password", callback);
 			});
 		});
@@ -63,7 +63,7 @@ describe('blackbox: federation', function() {
 	it("ping", function(done) {
 		this.timeout(10000);
 		client1.pingEndpoint("bob@test.27001", function(err, reply) {
-			assert(!err);
+			assert(!err, err);
 			console.log("Received ping reply", reply);
 			assert.equal(reply.from.domain, "test.27001");
 			assert.equal(reply.from.userId, "bob");
@@ -92,9 +92,9 @@ describe('blackbox: federation', function() {
 						client1PresenceNotifications.push(message);
 					});
 					client1.connect(function(err) {
-						assert(!err);
+						assert(!err, err);
 						client1.authenticate("joe", "password", function(err, reply) {
-							assert(!err);
+							assert(!err, err);
 							var retries = 0;
 							var timer2 = setInterval(function() {
 								if (client2PresenceNotifications.length > 1) {
@@ -129,7 +129,7 @@ describe('blackbox: federation', function() {
 		this.timeout(10000);
 		// First, ensure that the link is open
 		client1.pingEndpoint("bob@test.27001", function(err, reply) {
-			assert(!err);
+			assert(!err, err);
 			var activeSession = server1.services.federationManager.activeSessionsByDomain['test.27001'];
 			assert(activeSession);
 			// Now wait long enough for idle to kick in

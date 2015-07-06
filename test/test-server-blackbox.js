@@ -22,11 +22,11 @@ describe('blackbox: single-server', function() {
 	it("unauthenticated hello", function(done) {
 		var client = new BraidClient(config.domain, config.client.port, 'localhost');
 		client.connect(function(err) {
-			assert(!err);
-			client.sendHello(factory.newHelloPayload("blackbox-test", "0.1", {
+			assert(!err, err);
+			client.sendHello("blackbox-test", "0.1", {
 				v : 1
-			}), function(err, response) {
-				assert(!err);
+			}, function(err, response) {
+				assert(!err, err);
 				assert.equal(response.data.product, "braid-server");
 				client.close();
 				done();
@@ -37,17 +37,17 @@ describe('blackbox: single-server', function() {
 	it("register and then auth", function(done) {
 		var client1 = new BraidClient(config.domain, config.client.port, 'localhost');
 		client1.connect(function(err) {
-			assert(!err);
+			assert(!err, err);
 			client1.register("joe", "password", function(err) {
-				assert(!err);
+				assert(!err, err);
 				client1.close();
 				var client2 = new BraidClient(config.domain, config.client.port, 'localhost');
 				client2.connect(function(err) {
-					assert(!err);
+					assert(!err, err);
 					client2.authenticate("joe", "foobar", function(err) {
 						assert(err);
 						client2.authenticate("joe", "password", function(err) {
-							assert(!err);
+							assert(!err, err);
 							client2.close();
 							done();
 						});
@@ -60,15 +60,12 @@ describe('blackbox: single-server', function() {
 	it("ping", function(done) {
 		var client1 = new BraidClient(config.domain, config.client.port, 'localhost');
 		client1.connect(function(err) {
-			assert(!err);
+			assert(!err, err);
 			client1.authenticate("joe", "password", function(err, reply) {
-				assert(!err);
+				assert(!err, err);
 				client1.pingServer(function(err, reply) {
-					assert(!err);
-					client1.pingEndpoint("joe/!bot", function(err, reply) {
-						assert(!err);
-						done();
-					});
+					assert(!err, err);
+					done();
 				});
 			});
 		});

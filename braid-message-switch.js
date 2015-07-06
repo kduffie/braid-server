@@ -158,9 +158,7 @@ MessageSwitch.prototype.deliver = function(message, callback) {
 	tasks.push(function(callback) {
 		if (message.to) {
 			var handlers = [];
-			console.log("message-switch:debug: ", message.to);
 			for (var i = 0; i < message.to.length; i++) {
-				console.log("message-switch:debug: recipient", message.to[i]);
 				var recipient = message.to[i];
 				if (recipient.userId && recipient.domain) {
 					var key = this._getUserKey(recipient.userId, recipient.domain);
