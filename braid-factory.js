@@ -170,7 +170,9 @@ BraidFactory.prototype.newRosterRequest = function(to, from) {
 
 BraidFactory.prototype.newRosterReply = function(requestMessage, roster, from) {
 	var message = this.newReply(requestMessage, from);
-	message.data = roster;
+	message.data = {
+	                entries: roster
+	};
 	return message;
 };
 
