@@ -5,6 +5,8 @@ var TileMutationMongoHandler = require('./braid-tile-mutation-mongo-handler');
 var BOT_RESOURCE = '!bot';
 var lru = require('lru-cache');
 
+var MINIMUM_SYNC_INTERVAL = 1000 * 60
+
 function BotManager() {
 
 }
@@ -182,17 +184,68 @@ BotManager.prototype.initiateSynchronization = function(remoteAddress, myAddress
 };
 
 BotManager.prototype.sendSyncRequest = function(remoteAddress, myAddress) {
-	var summaries = [];
 	// Need to find all of the objects that this user has in common with the remote user.
 	// If the remote user has the same identity, but different resource, then it is easy.
 	// Otherwise, we need to look for groups that include both addresses, plus tiles that
 	// are shared with the specific user, or with a group they have in common.
 
-	this.sendMessage(this.factory.newSynchronizeRequestMessage(myAddress, remoteAddress, summaries));
+	if (remoteAddress.userId === myAddress.userId && remoteAddress.domain === myAddress.domain) {
+		this.braidDb.iterateUserObjects(myAddress.userId, function(err, cursor) {
+			if (err) {
+				console.error("Failure iterating user objects", err);
+			} else {
+				cursor.toArray(function(err, userObjects) {
+					if (err) {
+						console.error("Failure iterating user objects", err);
+					} else {
+						var summaries = [];
+						async.each(userObjects, function(userObject, callback) {
+							this.addSummaryFromUserObject(userObject, summaries, callback);
+						}.bind(this), function(err) {
+							this.sendMessage(this.factory.newSynchronizeRequestMessage(myAddress, remoteAddress, summaries));
+						}.bind(this));
+					}
+				});
+			}
+		}.bind(this));
+	} else {
+		// TODO: need to find shared objects -- based on two people, or common groups
+	}
 };
 
-BotManager.prototype.requestAllMutations = function(address, objectType, objectId) {
-
+BotManager.prototype.addSummaryFromUserObject = function(userObject, summaries, callback) {
+	switch (userObject.objectType) {
+	case 'group':
+		this.braidDb.findGroupById(userObject.objectId, function(err, groupRecord) {
+			if (err) {
+				console.error("Error finding group record", err);
+			} else if (groupRecord) {
+				summaries.push(this.factory.newSharedObjectSummary(userObject.objectType, userObject.objectId, null, null,
+						groupRecord.summaryInfo.mutationCount, groupRecord.summaryInfo.stateHash, groupRecord.summaryInfo.latestMutationId));
+			} else {
+				console.warn("Missing group record", userObject);
+			}
+			callback();
+		}.bind(this));
+		break;
+	case 'tile':
+		this.braidDb.findTileById(userObject.objectId, function(err, tileRecord) {
+			if (err) {
+				console.error("Error finding tile record", err);
+			} else if (tileRecord) {
+				summaries.push(this.factory.newSharedObjectSummary(userObject.objectType, userObject.objectId, tileRecord.appId, tileRecord.appVersion,
+						tileRecord.summaryInfo.mutationCount, tileRecord.summaryInfo.stateHash, tileRecord.summaryInfo.latestMutationId));
+			} else {
+				console.warn("Missing tile record", userObject);
+			}
+			callback();
+		}.bind(this));
+		break;
+	default:
+		console.error("Unsupported object type", userObject);
+		callback();
+		break;
+	}
 };
 
 BotManager.prototype.processMutation = function(mutation) {

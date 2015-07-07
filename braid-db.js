@@ -333,6 +333,18 @@ BraidDb.prototype.findTileById = function(tileId, callback /* (err, record) */) 
 	}, callback);
 };
 
+BraidDb.prototype.insertGroup = function(record, callback) {
+	this.groups.insert(record, {
+		w : 1
+	}, callback);
+};
+
+BraidDb.prototype.findGroupById = function(groupId, callback /* (err, record) */) {
+	this.groups.findOne({
+		groupId : groupId
+	}, callback);
+};
+
 BraidDb.prototype.insertUserObject = function(record, callback) {
 	this.userObjects.insert(record, {
 		w : 1
@@ -345,6 +357,13 @@ BraidDb.prototype.findUserObject = function(userId, objectType, objectId, callba
 		objectType : objectType,
 		objectId : objectId
 	}, callback);
+};
+
+BraidDb.prototype.iterateUserObjects = function(userId, callback /* (err, cursor) */) {
+	var cursor = this.userObjects.find({
+		userId : userId
+	});
+	callback(null, cursor);
 };
 
 BraidDb.prototype.insertMutation = function(record, callback) {
