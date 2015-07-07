@@ -3,6 +3,7 @@ var BraidAddress = require('./braid-address').BraidAddress;
 var TileMutationProcessor = require('./braid-tile-mutation-processor');
 var TileMutationMongoHandler = require('./braid-tile-mutation-mongo-handler');
 var BOT_RESOURCE = '!bot';
+var lru = require('lru-cache');
 
 function BotManager() {
 
@@ -20,11 +21,16 @@ BotManager.prototype.initialize = function(config, services) {
 	this.authServer = services.authServer;
 	this.braidDb = services.braidDb;
 	this.messageSwitch.registerHook(this.messageHandler.bind(this));
-	this.mutationProcessorsByTileId = {};
-	this.mutationHandler = new TileMutationMongoHandler({
-		onFileMissing : this.handleOnFileMissing.bind(this),
-		onMutationsCompleted : this.handleOnMutationsCompleted.bind(this),
-	}, this.braidDb);
+	this.lastSyncCache = lru({
+		max : 10000,
+		maxAge : 1000 * 60 * 15
+	});
+
+	// this.mutationProcessorsByTileId = {};
+	// this.mutationHandler = new TileMutationMongoHandler({
+	// onFileMissing : this.handleOnFileMissing.bind(this),
+	// onMutationsCompleted : this.handleOnMutationsCompleted.bind(this),
+	// }, this.braidDb);
 };
 
 BotManager.prototype.sendMessage = function(message) {
@@ -34,6 +40,177 @@ BotManager.prototype.sendMessage = function(message) {
 BotManager.prototype.createProxyAddress = function(userId) {
 	return new BraidAddress(userId, this.config.domain, BOT_RESOURCE);
 };
+
+BotManager.prototype.messageHandler = function(message) {
+	// We're seeing every message going through the switch. We need to efficiently select those
+	// that we need to process
+
+	// If the messages are not sent to anyone, then I'm not interested
+	if (!message.to || message.to.length === 0) {
+		return;
+	}
+
+	if (!message.from) {
+		console.warn("braid-client-bot: message with no 'from'", message);
+	}
+
+	// Don't want to process messages I have sent
+	if (message.from.domain === this.config.domain && message.from.resource === BOT_RESOURCE) {
+		return;
+	}
+
+	// If the message is specifically to my resource on behalf of any user, I'll handle it
+	for (var i = 0; i < message.to.length; i++) {
+		var to = message.to[i];
+		if (to.userId && to.resource === BOT_RESOURCE && to.domain === this.config.domain) {
+			this.handleMessage(message, to, true);
+			return;
+		}
+	}
+
+	// If the message is sent to a user in my domain, but without a resource, then I'll act as an active session
+	for (var i = 0; i < message.to.length; i++) {
+		var to = message.to[i];
+		if (to.userId && !to.resource && to.domain === this.config.domain) {
+			this.handleMessage(message, to, false);
+			return;
+		}
+	}
+};
+
+BotManager.prototype.handleMessage = function(message, to, isDirected) {
+	this.authServer.getUserRecord(to.userId, function(err, userRecord) {
+		if (err) {
+			console.warn("braid-client-bot: error getting user record", err);
+		} else if (userRecord) {
+			switch (message.type) {
+			case 'request':
+				switch (message.request) {
+				case 'ping':
+					this.handlePing(message, to);
+					break;
+				default:
+					if (isDirected) {
+						this.sendMessage(this.factory.newErrorReply(message, 406, "This request type is not supported", new BraidAddress(to.userId,
+								this.config.domain, BOT_RESOURCE)));
+					}
+					break;
+				}
+				break;
+			case 'cast':
+				switch (message.request) {
+				case 'mutation':
+					this.handleMutation(message, to);
+					break;
+				default:
+					if (isDirected) {
+						this.sendMessage(this.factory.newErrorReply(message, 406, "This request type is not supported", new BraidAddress(to.userId,
+								this.config.domain, BOT_RESOURCE)));
+					}
+				}
+				break;
+			case 'reply':
+				break;
+			case 'error':
+				break;
+			}
+		} else {
+			console.warn("braid-client-bot: ignoring message sent to non-existent user: " + to.userId);
+		}
+	}.bind(this));
+};
+
+BotManager.prototype.handlePing = function(message, to) {
+	var reply = this.factory.newPingReplyMessage(message, this.createProxyAddress(to.userId));
+	this.sendMessage(reply);
+};
+
+BotManager.prototype.handleMutation = function(message, to) {
+	// When we receive a mutation, if we don't already have it, we'll store it. If the proxied user
+	// doesn't already have the corresponding object (group or tile), we'll add a record that now they
+	// do and will initiate appropriate action to get in sync. We will then add this to a mutation processor for the
+	// corresponding object.
+
+	var mutation = message.data;
+	this.braidDb.isMutationExists(mutation.objectType, mutation.objectId, mutation.mutationId, true, false, function(exists) {
+		if (exists) {
+			this.ensureSharedObjectBasedOnMutation(message, to);
+		} else {
+			var mutationRecord = this.factory.newMutationRecord(mutation.objectType, mutation.objectId, mutation.mutationId, mutation.created,
+					mutation.originator, mutation.action, mutation.value, mutation.file);
+			this.braidDb.insertMutation(mutationRecord, function(err) {
+				this.ensureSharedObjectBasedOnMutation(message, to);
+				this.processMutation(mutation);
+			}.bind(this));
+		}
+	}.bind(this));
+};
+
+BotManager.prototype.ensureSharedObjectBasedOnMutation = function(message, to) {
+	var mutation = message.data;
+	this.braidDb.findUserObject(to.userId, mutation.objectType, mutation.objectId, function(err, userObjectRecord) {
+		if (err) {
+			console.error("Error finding user object", err);
+		} else if (userObjectRecord) {
+			// The user-object record already exists. Nothing needed to be done.
+		} else {
+			// Record not found. Add one.
+			userObjectRecord = this.factory.newUserObjectRecord(to.userId, mutation.objectType, mutation.objectId);
+			this.braidDb.insertUserObject(userObjectRecord, function(err) {
+				if (err) {
+					console.error("Error inserting user object", err);
+				} else {
+					this.initiateSynchronization(message.from, this.createProxyAddress(to.userId));
+				}
+			});
+		}
+	}.bind(this));
+};
+
+BotManager.prototype.getLastSyncKey = function(remoteAddress, myAddress) {
+	return newAddress(remoteAddress).asString() + "," + newAddress(myAddress).asString();
+};
+
+BotManager.prototype.initiateSynchronization = function(remoteAddress, myAddress) {
+	var key = this.getLastSyncKey(remoteAddress, myAddress);
+	var lastSync = lastSyncCache.get(key);
+	if (!lastSync || DateTime.now() - lastSync < MINIMUM_SYNC_INTERVAL) {
+		lastSync = DateTime.now();
+		lastSyncCache.set(key, lastSync);
+		this.sendSyncRequest(remoteAddress, myAddress);
+	}
+};
+
+BotManager.prototype.sendSyncRequest = function(remoteAddress, myAddress) {
+	var summaries = [];
+	// Need to find all of the objects that this user has in common with the remote user.
+	// If the remote user has the same identity, but different resource, then it is easy.
+	// Otherwise, we need to look for groups that include both addresses, plus tiles that
+	// are shared with the specific user, or with a group they have in common.
+
+	this.sendMessage(this.factory.newSynchronizeRequestMessage(myAddress, remoteAddress, summaries));
+};
+
+BotManager.prototype.requestAllMutations = function(address, objectType, objectId) {
+
+};
+
+BotManager.prototype.processMutation = function(mutation) {
+
+};
+
+module.exports = {
+	BotManager : BotManager
+};
+
+// BotManager.prototype.handleOnFileMissing = function(tileId, mutation) {
+// // TODO: request file from originator
+// };
+//
+// BotManager.prototype.handleOnMutationsCompleted = function(tileId) {
+// delete this.mutationProcessorsByTileId[tileId];
+// };
+//
 
 // BotManager.prototype.handleTileShare = function(message) {
 // // When we get a tile-share, it is either from our own user, or from
@@ -421,48 +598,6 @@ BotManager.prototype.createProxyAddress = function(userId) {
 // }.bind(this));
 // };
 
-BotManager.prototype.handlePing = function(message, to) {
-	var reply = this.factory.newPingReplyMessage(message, this.createProxyAddress(to.userId));
-	this.sendMessage(reply);
-};
-
-BotManager.prototype.messageHandler = function(message) {
-	// We're seeing every message going through the switch. We need to efficiently select those
-	// that we need to process
-
-	// If the messages are not sent to anyone, then I'm not interested
-	if (!message.to || message.to.length === 0) {
-		return;
-	}
-
-	if (!message.from) {
-		console.warn("braid-client-bot: message with no 'from'", message);
-	}
-
-	// Don't want to process messages I have sent
-	if (message.from.domain === this.config.domain && message.from.resource === BOT_RESOURCE) {
-		return;
-	}
-
-	// If the message is specifically to my resource on behalf of any user, I'll handle it
-	for (var i = 0; i < message.to.length; i++) {
-		var to = message.to[i];
-		if (to.userId && to.resource === BOT_RESOURCE && to.domain === this.config.domain) {
-			this.handleMessage(message, to, true);
-			return;
-		}
-	}
-
-	// If the message is sent to a user in my domain, but without a resource, then I'll act as an active session
-	for (var i = 0; i < message.to.length; i++) {
-		var to = message.to[i];
-		if (to.userId && !to.resource && to.domain === this.config.domain) {
-			this.handleMessage(message, to, false);
-			return;
-		}
-	}
-};
-
 // BotManager.prototype.handleTileMutationListRequest = function(request, to) {
 // // They have asked us to provide a list of mutations for a given tile, and possibly to send the actual mutations
 // // with or without dependencies
@@ -588,53 +723,3 @@ BotManager.prototype.messageHandler = function(message) {
 // }.bind(this));
 // };
 
-BotManager.prototype.handleMessage = function(message, to, isDirected) {
-	this.authServer.getUserRecord(to.userId, function(err, userRecord) {
-		if (err) {
-			console.warn("braid-client-bot: error getting user record", err);
-		} else if (userRecord) {
-			switch (message.type) {
-			case 'request':
-				switch (message.request) {
-				case 'ping':
-					this.handlePing(message, to);
-					break;
-				default:
-					if (isDirected) {
-						this.sendMessage(this.factory.newErrorReply(message, 406, "This request type is not supported", new BraidAddress(to.userId,
-								this.config.domain, BOT_RESOURCE)));
-					}
-					break;
-				}
-				break;
-			case 'cast':
-				switch (message.request) {
-				default:
-					if (isDirected) {
-						this.sendMessage(this.factory.newErrorReply(message, 406, "This request type is not supported", new BraidAddress(to.userId,
-								this.config.domain, BOT_RESOURCE)));
-					}
-				}
-				break;
-			case 'reply':
-				break;
-			case 'error':
-				break;
-			}
-		} else {
-			console.warn("braid-client-bot: ignoring message sent to non-existent user: " + to.userId);
-		}
-	}.bind(this));
-};
-
-BotManager.prototype.handleOnFileMissing = function(tileId, mutation) {
-	// TODO: request file from originator
-};
-
-BotManager.prototype.handleOnMutationsCompleted = function(tileId) {
-	delete this.mutationProcessorsByTileId[tileId];
-};
-
-module.exports = {
-	BotManager : BotManager
-};
