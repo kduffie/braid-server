@@ -66,7 +66,7 @@ describe('blackbox: federation', function() {
 			assert(!err, err);
 			console.log("Received ping reply", reply);
 			assert.equal(reply.from.domain, "test.27001");
-			assert.equal(reply.from.userId, "bob");
+			assert.equal(reply.from.userid, "bob");
 			done();
 		});
 	});
@@ -84,7 +84,7 @@ describe('blackbox: federation', function() {
 					clearInterval(timer1);
 					assert.equal(client2PresenceNotifications[0].from.domain, 'test.27001');
 					assert.equal(client2PresenceNotifications[0].data.online, false);
-					assert.equal(client2PresenceNotifications[0].data.address.userId, 'joe');
+					assert.equal(client2PresenceNotifications[0].data.address.userid, 'joe');
 
 					// Now try connecting again and see that presence
 					client1 = new BraidClient(config1.domain, config1.client.port, 'localhost');
@@ -101,7 +101,7 @@ describe('blackbox: federation', function() {
 									clearInterval(timer2);
 									assert.equal(client2PresenceNotifications[1].from.domain, 'test.27001');
 									assert.equal(client2PresenceNotifications[1].data.online, true);
-									assert.equal(client2PresenceNotifications[1].data.address.userId, 'joe');
+									assert.equal(client2PresenceNotifications[1].data.address.userid, 'joe');
 									done();
 								} else {
 									retries++;

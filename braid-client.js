@@ -34,7 +34,7 @@ BraidClient.prototype.onPresenceNotification = function(handler) {
 };
 
 BraidClient.prototype.connect = function(callback) {
-	console.log(this.userId + ": connect");
+	console.log(this.userid + ": connect");
 	this.connectCallback = callback;
 	this.socket = new WebSocket("ws://" + this.server + ":" + this.port + "/braid-client", []);
 	if (isWebClient) {
@@ -55,10 +55,10 @@ BraidClient.prototype.sendHello = function(product, version, capabilities, callb
 	this.sendRequest(hello, callback);
 };
 
-BraidClient.prototype.register = function(userId, password, callback) {
-	this.userId = userId;
-	console.log(this.userId + ": register", userId);
-	var request = factory.newRegisterRequestMessage(userId, password);
+BraidClient.prototype.register = function(userid, password, callback) {
+	this.userid = userid;
+	console.log(this.userid + ": register", userid);
+	var request = factory.newRegisterRequestMessage(userid, password);
 	this.sendRequest(request, function(err, reply) {
 		if (err) {
 			if (callback) {
@@ -96,10 +96,10 @@ BraidClient.prototype.getErrorDisplay = function(reply) {
 	return message;
 };
 
-BraidClient.prototype.authenticate = function(userId, password, callback) {
-	this.userId = userId;
-	console.log(this.userId + ": authenticate", userId);
-	var request = factory.newAuthRequestMessage(userId, password);
+BraidClient.prototype.authenticate = function(userid, password, callback) {
+	this.userid = userid;
+	console.log(this.userid + ": authenticate", userid);
+	var request = factory.newAuthRequestMessage(userid, password);
 	this.sendRequest(request, function(err, reply) {
 		if (err) {
 			if (callback) {
@@ -129,7 +129,7 @@ BraidClient.prototype.authenticate = function(userId, password, callback) {
 };
 
 BraidClient.prototype.pingServer = function(callback) {
-	console.log(this.userId + ": pingServer");
+	console.log(this.userid + ": pingServer");
 	this.pingEndpoint(null, callback);
 };
 
@@ -148,15 +148,15 @@ BraidClient.prototype.parseAddressEntry = function(value) {
 		value = parts[0];
 	}
 	parts = value.split("@");
-	var userId = parts[0];
+	var userid = parts[0];
 	if (parts.length > 1) {
 		domain = parts[1];
 	}
-	return new BraidAddress(userId, domain, resource);
+	return new BraidAddress(userid, domain, resource);
 }
 
 BraidClient.prototype.pingEndpoint = function(address, callback) {
-	console.log(this.userId + ": pingEndpoint", address);
+	console.log(this.userid + ": pingEndpoint", address);
 	to = this.parseAddressEntry(address);
 	var request = factory.newPingRequestMessage(null, to);
 	this.sendRequest(request, function(err, reply) {
@@ -179,27 +179,27 @@ BraidClient.prototype.sendTextMessage = function(user, textMessage) {
 };
 
 BraidClient.prototype.requestRoster = function(callback) {
-	console.log(this.userId + ": requestRoster");
+	console.log(this.userid + ": requestRoster");
 	var cast = factory.newRosterRequestMessage();
 	this.sendRequest(cast, callback);
 };
 
 BraidClient.prototype.subscribe = function(user) {
-	console.log(this.userId + ": subscribe", user);
+	console.log(this.userid + ": subscribe", user);
 	var to = this.parseAddressEntry(user);
 	var cast = factory.newSubscribeMessage(null, to);
 	this.sendCast(cast);
 };
 
 BraidClient.prototype.unsubscribe = function(user) {
-	console.log(this.userId + ": unsubscribe", user);
+	console.log(this.userid + ": unsubscribe", user);
 	var to = this.parseAddressEntry(user);
 	var cast = factory.newUnsubscribeMessage(null, to);
 	this.sendCast(cast);
 };
 
 BraidClient.prototype.onSocketOpen = function(event) {
-	console.log(this.userId + ": onSocketOpen");
+	console.log(this.userid + ": onSocketOpen");
 	if (this.connectCallback) {
 		this.connectCallback();
 		this.connectCallback = null;
@@ -207,14 +207,14 @@ BraidClient.prototype.onSocketOpen = function(event) {
 };
 
 BraidClient.prototype.onSocketError = function(event) {
-	console.log(this.userId + ": onSocketError", event);
+	console.log(this.userid + ": onSocketError", event);
 	if (this.connectCallback) {
 		this.connectCallback("Failure connecting to server");
 	}
 };
 
 BraidClient.prototype.dumpRoster = function(event) {
-	console.log(this.userId + ": current roster", this.roster);
+	console.log(this.userid + ": current roster", this.roster);
 };
 
 BraidClient.prototype.onSocketMessage = function(event) {
@@ -226,7 +226,7 @@ BraidClient.prototype.onSocketMessage = function(event) {
 		console.log("Invalid message received", messageString, err);
 		return;
 	}
-	console.log(this.userId + " RX", message);
+	console.log(this.userid + " RX", message);
 	if (message.id && (message.type === 'reply' || message.type === 'error')) {
 		var pendingCallback = this.pendingRequests[message.id];
 		if (pendingCallback) {
@@ -317,7 +317,7 @@ BraidClient.prototype.handlePresence = function(message) {
 		// // todo: callback to caller
 		// }
 	} else {
-		console.log(this.userId + ": Invalid braid presence message", message);
+		console.log(this.userid + ": Invalid braid presence message", message);
 	}
 };
 BraidClient.prototype.handlePingRequest = function(message) {
@@ -329,12 +329,12 @@ BraidClient.prototype.onSocketBinary = function() {
 };
 
 BraidClient.prototype.onSocketClosed = function() {
-	console.log(this.userId + ": Braid socket closed");
+	console.log(this.userid + ": Braid socket closed");
 	this.finalize();
 };
 
 BraidClient.prototype.close = function() {
-	console.log(this.userId + ": Braid socket closing");
+	console.log(this.userid + ": Braid socket closing");
 	if (this.socket) {
 		this.socket.close();
 	}
@@ -354,20 +354,20 @@ BraidClient.prototype.sendRequest = function(requestMessage, callback) {
 	setTimeout(function() {
 		var cb = this.pendingRequests[id];
 		if (cb) {
-			cb(this.userId + ": Request timeout");
+			cb(this.userid + ": Request timeout");
 		}
 	}.bind(this), 15000);
-	console.log(this.userId + ": REQUEST", requestMessage);
+	console.log(this.userid + ": REQUEST", requestMessage);
 	this.socket.send(JSON.stringify(requestMessage));
 };
 
 BraidClient.prototype.sendCast = function(castMessage) {
-	console.log(this.userId + ": CAST", castMessage);
+	console.log(this.userid + ": CAST", castMessage);
 	this.socket.send(JSON.stringify(castMessage));
 };
 
 BraidClient.prototype.sendReply = function(replyMessage) {
-	console.log(this.userId + ": REPLY", replyMessage);
+	console.log(this.userid + ": REPLY", replyMessage);
 	this.socket.send(JSON.stringify(replyMessage));
 };
 

@@ -101,7 +101,7 @@ Session.prototype.activateSession = function(message) {
 	// We were listening on everything with the resource, but now, instead, we'll listen to
 	// all messages sent to the user -- even without a resource
 	this.messageSwitch.unregister(this.portSwitchPort);
-	this.portSwitchPort = this.messageSwitch.registerUser(this.userAddress.userId, this.userAddress.domain, this._handleSwitchedMessage.bind(this));
+	this.portSwitchPort = this.messageSwitch.registerUser(this.userAddress.userid, this.userAddress.domain, this._handleSwitchedMessage.bind(this));
 	this.state = 'active';
 	console.log("Firing client-session-activated", message);
 	this.eventBus.fire('client-session-activated', this);
@@ -113,7 +113,7 @@ Session.prototype.onSocketMessageReceived = function(msg) {
 		return;
 	}
 	if (this.config.debug && this.config.debug.clientSessions && this.config.debug.clientSessions.logMessages) {
-		console.log("client: RX (" + this.userId + ")", message);
+		console.log("client: RX (" + this.userid + ")", message);
 	}
 	if (!message.type) {
 		this.sendErrorResponseIfAppropriate(message, this.address, "Invalid message.  Missing type.", 400, true);

@@ -90,7 +90,7 @@ BraidDb.prototype._setup = function(callback) {
 BraidDb.prototype._setupAccounts = function(callback) {
 	this.accounts = this.db.collection("accounts");
 	this.accounts.ensureIndex({
-		userId : 1
+		userid : 1
 	}, {
 		unique : true,
 		w : 1
@@ -102,7 +102,7 @@ BraidDb.prototype._setupSubscriptions = function(callback) {
 	var steps = [];
 	steps.push(function(callback) {
 		this.subscriptions.ensureIndex({
-			"target.userId" : 1,
+			"target.userid" : 1,
 			"target.domain" : 1
 		}, {
 			unique : true,
@@ -111,7 +111,7 @@ BraidDb.prototype._setupSubscriptions = function(callback) {
 	}.bind(this));
 	steps.push(function(callback) {
 		this.subscriptions.ensureIndex({
-			"subscriber.userId" : 1,
+			"subscriber.userid" : 1,
 			"subscriber.domain" : 1
 		}, {
 			w : 1
@@ -151,7 +151,7 @@ BraidDb.prototype._setupGroups = function(callback) {
 BraidDb.prototype._setupUserObjects = function(callback) {
 	this.userObjects = this.db.collection("userObjects");
 	this.userObjects.ensureIndex({
-		userId : 1,
+		userid : 1,
 		objectType : 1,
 		objectId : 1
 	}, {
@@ -270,9 +270,9 @@ BraidDb.prototype.insertAccount = function(record, callback) {
 	}, callback);
 };
 
-BraidDb.prototype.findAccountById = function(userId, callback /* (err, record) */) {
+BraidDb.prototype.findAccountById = function(userid, callback /* (err, record) */) {
 	this.accounts.findOne({
-		userId : userId
+		userid : userid
 	}, callback);
 };
 
@@ -289,32 +289,32 @@ BraidDb.prototype.insertSubscription = function(record, callback) {
 
 BraidDb.prototype.findSubscribersByTarget = function(targetUserId, targetDomain, callback /* (err, records) */) {
 	this.subscriptions.find({
-		"target.userId" : targetUserId,
+		"target.userid" : targetUserId,
 		"target.domain" : targetDomain
 	}).toArray(callback);
 };
 
 BraidDb.prototype.findSubscription = function(targetUserId, targetDomain, subscriberUserId, subscriberDomain, callback /* (err, record) */) {
 	this.subscriptions.findOne({
-		"target.userId" : targetUserId,
+		"target.userid" : targetUserId,
 		"target.domain" : targetDomain,
-		"subscriber.userId" : subscriberUserId,
+		"subscriber.userid" : subscriberUserId,
 		"subscriber.domain" : subscriberDomain
 	}, callback);
 };
 
 BraidDb.prototype.findTargetsBySubscriber = function(subscriberUserId, subscriberDomain, callback /* (err, records) */) {
 	this.subscriptions.find({
-		"subscriber.userId" : subscriberUserId,
+		"subscriber.userid" : subscriberUserId,
 		"subscriber.domain" : subscriberDomain
 	}).toArray(callback);
 };
 
 BraidDb.prototype.removeSubscription = function(targetUserId, targetDomain, subscriberUserId, subscriberDomain, callback) {
 	this.subscriptions.deleteOne({
-		"target.userId" : targetUserId,
+		"target.userid" : targetUserId,
 		"target.domain" : targetDomain,
-		"subscriber.userId" : subscriberUserId,
+		"subscriber.userid" : subscriberUserId,
 		"subscriber.domain" : subscriberDomain
 	}, {
 		w : 1
@@ -351,17 +351,17 @@ BraidDb.prototype.insertUserObject = function(record, callback) {
 	}, callback);
 };
 
-BraidDb.prototype.findUserObject = function(userId, objectType, objectId, callback /* (err, record) */) {
+BraidDb.prototype.findUserObject = function(userid, objectType, objectId, callback /* (err, record) */) {
 	this.userTiles.findOne({
-		userId : userId,
+		userid : userid,
 		objectType : objectType,
 		objectId : objectId
 	}, callback);
 };
 
-BraidDb.prototype.iterateUserObjects = function(userId, callback /* (err, cursor) */) {
+BraidDb.prototype.iterateUserObjects = function(userid, callback /* (err, cursor) */) {
 	var cursor = this.userObjects.find({
-		userId : userId
+		userid : userid
 	});
 	callback(null, cursor);
 };

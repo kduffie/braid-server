@@ -39,8 +39,8 @@ BotManager.prototype.sendMessage = function(message) {
 	this.messageSwitch.deliver(message);
 };
 
-BotManager.prototype.createProxyAddress = function(userId) {
-	return new BraidAddress(userId, this.config.domain, BOT_RESOURCE);
+BotManager.prototype.createProxyAddress = function(userid) {
+	return new BraidAddress(userid, this.config.domain, BOT_RESOURCE);
 };
 
 BotManager.prototype.messageHandler = function(message) {
@@ -64,7 +64,7 @@ BotManager.prototype.messageHandler = function(message) {
 	// If the message is specifically to my resource on behalf of any user, I'll handle it
 	for (var i = 0; i < message.to.length; i++) {
 		var to = message.to[i];
-		if (to.userId && to.resource === BOT_RESOURCE && to.domain === this.config.domain) {
+		if (to.userid && to.resource === BOT_RESOURCE && to.domain === this.config.domain) {
 			this.handleMessage(message, to, true);
 			return;
 		}
@@ -73,7 +73,7 @@ BotManager.prototype.messageHandler = function(message) {
 	// If the message is sent to a user in my domain, but without a resource, then I'll act as an active session
 	for (var i = 0; i < message.to.length; i++) {
 		var to = message.to[i];
-		if (to.userId && !to.resource && to.domain === this.config.domain) {
+		if (to.userid && !to.resource && to.domain === this.config.domain) {
 			this.handleMessage(message, to, false);
 			return;
 		}
@@ -81,7 +81,7 @@ BotManager.prototype.messageHandler = function(message) {
 };
 
 BotManager.prototype.handleMessage = function(message, to, isDirected) {
-	this.authServer.getUserRecord(to.userId, function(err, userRecord) {
+	this.authServer.getUserRecord(to.userid, function(err, userRecord) {
 		if (err) {
 			console.warn("braid-client-bot: error getting user record", err);
 		} else if (userRecord) {
@@ -93,7 +93,7 @@ BotManager.prototype.handleMessage = function(message, to, isDirected) {
 					break;
 				default:
 					if (isDirected) {
-						this.sendMessage(this.factory.newErrorReply(message, 406, "This request type is not supported", new BraidAddress(to.userId,
+						this.sendMessage(this.factory.newErrorReply(message, 406, "This request type is not supported", new BraidAddress(to.userid,
 								this.config.domain, BOT_RESOURCE)));
 					}
 					break;
@@ -106,7 +106,7 @@ BotManager.prototype.handleMessage = function(message, to, isDirected) {
 					break;
 				default:
 					if (isDirected) {
-						this.sendMessage(this.factory.newErrorReply(message, 406, "This request type is not supported", new BraidAddress(to.userId,
+						this.sendMessage(this.factory.newErrorReply(message, 406, "This request type is not supported", new BraidAddress(to.userid,
 								this.config.domain, BOT_RESOURCE)));
 					}
 				}
@@ -117,13 +117,13 @@ BotManager.prototype.handleMessage = function(message, to, isDirected) {
 				break;
 			}
 		} else {
-			console.warn("braid-client-bot: ignoring message sent to non-existent user: " + to.userId);
+			console.warn("braid-client-bot: ignoring message sent to non-existent user: " + to.userid);
 		}
 	}.bind(this));
 };
 
 BotManager.prototype.handlePing = function(message, to) {
-	var reply = this.factory.newPingReplyMessage(message, this.createProxyAddress(to.userId));
+	var reply = this.factory.newPingReplyMessage(message, this.createProxyAddress(to.userid));
 	this.sendMessage(reply);
 };
 
@@ -150,19 +150,19 @@ BotManager.prototype.handleMutation = function(message, to) {
 
 BotManager.prototype.ensureSharedObjectBasedOnMutation = function(message, to) {
 	var mutation = message.data;
-	this.braidDb.findUserObject(to.userId, mutation.objectType, mutation.objectId, function(err, userObjectRecord) {
+	this.braidDb.findUserObject(to.userid, mutation.objectType, mutation.objectId, function(err, userObjectRecord) {
 		if (err) {
 			console.error("Error finding user object", err);
 		} else if (userObjectRecord) {
 			// The user-object record already exists. Nothing needed to be done.
 		} else {
 			// Record not found. Add one.
-			userObjectRecord = this.factory.newUserObjectRecord(to.userId, mutation.objectType, mutation.objectId);
+			userObjectRecord = this.factory.newUserObjectRecord(to.userid, mutation.objectType, mutation.objectId);
 			this.braidDb.insertUserObject(userObjectRecord, function(err) {
 				if (err) {
 					console.error("Error inserting user object", err);
 				} else {
-					this.initiateSynchronization(message.from, this.createProxyAddress(to.userId));
+					this.initiateSynchronization(message.from, this.createProxyAddress(to.userid));
 				}
 			});
 		}
@@ -189,8 +189,8 @@ BotManager.prototype.sendSyncRequest = function(remoteAddress, myAddress) {
 	// Otherwise, we need to look for groups that include both addresses, plus tiles that
 	// are shared with the specific user, or with a group they have in common.
 
-	if (remoteAddress.userId === myAddress.userId && remoteAddress.domain === myAddress.domain) {
-		this.braidDb.iterateUserObjects(myAddress.userId, function(err, cursor) {
+	if (remoteAddress.userid === myAddress.userid && remoteAddress.domain === myAddress.domain) {
+		this.braidDb.iterateUserObjects(myAddress.userid, function(err, cursor) {
 			if (err) {
 				console.error("Failure iterating user objects", err);
 			} else {
@@ -286,7 +286,7 @@ module.exports = {
 //
 // for (var i = 0; i < message.to.length; i++) {
 // var to = message.to[i];
-// if (message.from.userId === to.userId && to.domain === this.config.domain) {
+// if (message.from.userid === to.userid && to.domain === this.config.domain) {
 // ownShare = true;
 // break;
 // }
@@ -310,12 +310,12 @@ module.exports = {
 // console.error("Failure inserting tile", err);
 // } else {
 // // We also need a record that this user has this tile
-// var userRecord = this.factory.newUserTileRecord(message.from.userId, message.data.tileId);
+// var userRecord = this.factory.newUserTileRecord(message.from.userid, message.data.tileId);
 // this.braidDb.insertUserTile(userRecord, function(err) {
 // if (err) {
 // console.error("Failure inserting tile", err);
 // } else {
-// var acceptMessage = this.factory.newTileAcceptMessage(message.from, this.createProxyAddress(message.from.userId),
+// var acceptMessage = this.factory.newTileAcceptMessage(message.from, this.createProxyAddress(message.from.userid),
 // message.data.tileId);
 // this.sendMessage(acceptMessage);
 // }
@@ -389,20 +389,20 @@ module.exports = {
 // this.braidDb.findTileById(message.data.tileId, function(err, tileRecord) {
 // if (err) {
 // console.error("Failure getting tile", err);
-// this.sendMessage(this.factory.newErrorReply(message, 500, "Internal db failure: " + err, new BraidAddress(to.userId, this.config.domain,
+// this.sendMessage(this.factory.newErrorReply(message, 500, "Internal db failure: " + err, new BraidAddress(to.userid, this.config.domain,
 // BOT_RESOURCE)));
 // return;
 // }
 // if (!tileRecord) {
 // console.warn("Received tile-accept for missing tile", message);
-// var errorReply = this.factory.newErrorReply(message, 404, "No such tile", new BraidAddress(to.userId, this.config.domain, BOT_RESOURCE));
+// var errorReply = this.factory.newErrorReply(message, 404, "No such tile", new BraidAddress(to.userid, this.config.domain, BOT_RESOURCE));
 // this.sendMessage(errorReply);
 // return;
 // }
 // var isMember = false;
 // for (var i = 0; i < tileRecord.members.length; i++) {
 // var member = tileRecord.members[i];
-// if (message.from.userId === member.userId && message.from.domain === member.domain) {
+// if (message.from.userid === member.userid && message.from.domain === member.domain) {
 // isMember = true;
 // break;
 // }
@@ -411,15 +411,15 @@ module.exports = {
 // this.processAccept(tileRecord, message);
 // } else if (message.from.domain === this.config.domain) {
 // // Not a member. But perhaps already owns this tile?
-// this.braidDb.findUserTile(message.from.userId, message.data.tileId, function(err, userTileRecord) {
+// this.braidDb.findUserTile(message.from.userid, message.data.tileId, function(err, userTileRecord) {
 // if (err) {
 // console.error("Failure getting tile", err);
-// this.sendMessage(this.factory.newErrorReply(message, 500, "Internal db failure: " + err, new BraidAddress(to.userId, this.config.domain,
+// this.sendMessage(this.factory.newErrorReply(message, 500, "Internal db failure: " + err, new BraidAddress(to.userid, this.config.domain,
 // BOT_RESOURCE)));
 // return;
 // }
 // if (!userTileRecord) {
-// this.sendMessage(this.factory.newErrorReply(message, 401, "Not authorized to access tile", new BraidAddress(to.userId, this.config.domain,
+// this.sendMessage(this.factory.newErrorReply(message, 401, "Not authorized to access tile", new BraidAddress(to.userid, this.config.domain,
 // BOT_RESOURCE)));
 // return;
 // }
@@ -427,7 +427,7 @@ module.exports = {
 // }.bind(this));
 // } else {
 // // Not in my domain, so return an error
-// this.sendMessage(this.factory.newErrorReply(message, 401, "Not authorized to access tile", new BraidAddress(to.userId, this.config.domain,
+// this.sendMessage(this.factory.newErrorReply(message, 401, "Not authorized to access tile", new BraidAddress(to.userid, this.config.domain,
 // BOT_RESOURCE)));
 // }
 // }.bind(this));
@@ -440,7 +440,7 @@ module.exports = {
 // console.error("Failure while iterating tile records", err);
 // } else {
 // cursor.forEach(function(mutationRecord) {
-// var mutationMessage = this.factory.newTileMutationMessage(message.from, new BraidAddress(to.userId, this.config.domain, BOT_RESOURCE),
+// var mutationMessage = this.factory.newTileMutationMessage(message.from, new BraidAddress(to.userid, this.config.domain, BOT_RESOURCE),
 // mutationRecord);
 // this.sendMessage(mutationMessage);
 // }.bind(this), function(err) {
@@ -466,13 +466,13 @@ module.exports = {
 // this.braidDb.findTilesByMember(message.from, function(err, tileRecords) {
 // if (err) {
 // this.sendMessage(this.factory.newErrorReply(message, 500, "Internal failure: " + err),
-// new BraidAddress(to.userId, this.config.domain, BOT_RESOURCE));
+// new BraidAddress(to.userid, this.config.domain, BOT_RESOURCE));
 // } else {
 // var missingTiles = [];
 // var mismatchedTiles = [];
 // async.each(tileRecords, function(tileRecord, callback) {
 // // First, we need to see if the targeted user actually has this tile
-// this.braidDb.findUserTile(to.userId, tileRecord.tileId, function(err, userTileRecord) {
+// this.braidDb.findUserTile(to.userid, tileRecord.tileId, function(err, userTileRecord) {
 // if (err) {
 // console.error("Failure getting user tile", err);
 // callback(err);
@@ -542,7 +542,7 @@ module.exports = {
 // }.bind(this));
 // }.bind(this), function(err) {
 // // All records have been reviewed. Now we assemble our response
-// var reply = this.factory.newTileInventoryReply(message, new BraidAddress(to.userId, this.config.domain, BOT_RESOURCE), mismatchedTiles,
+// var reply = this.factory.newTileInventoryReply(message, new BraidAddress(to.userid, this.config.domain, BOT_RESOURCE), mismatchedTiles,
 // missingTiles, []);
 // this.sendMessage(reply);
 //
@@ -604,7 +604,7 @@ module.exports = {
 // }
 // var summaries = [];
 // async.each(tileRecords, function(tileRecord, callback) {
-// this.braidDb.findUserTile(to.userId, tileRecord.tileId, function(err, userTileRecord) {
+// this.braidDb.findUserTile(to.userid, tileRecord.tileId, function(err, userTileRecord) {
 // if (err) {
 // console.error("Failure getting user tile", err);
 // callback(err);
@@ -616,7 +616,7 @@ module.exports = {
 // }.bind(this));
 // }.bind(this), function(err) {
 // // We now have a full set of summaries relevant to the target user
-// var request = this.factory.newTileInventoryRequest(to, new BraidAddress(to.userId, this.config.domain, BOT_RESOURCE), summaries);
+// var request = this.factory.newTileInventoryRequest(to, new BraidAddress(to.userid, this.config.domain, BOT_RESOURCE), summaries);
 // this.sendMessage(request);
 // }.bind(this));
 // }.bind(this));
@@ -628,7 +628,7 @@ module.exports = {
 //
 // // For missing tiles, we'll accept them if and only if they are being shared by the sender to his/her own bot
 // async.each(reply.data.missingTiles, function(summary, callback) {
-// if (reply.from.userId === to.userId && reply.from.domain === to.domain) {
+// if (reply.from.userid === to.userid && reply.from.domain === to.domain) {
 // var tileAccept = this.factory.newTileAcceptRequest(reply.from, to, summary.tileId);
 // this.sendMessage(tileAccept);
 // }
@@ -657,11 +657,11 @@ module.exports = {
 //
 // // First, we need to be sure that the user associated with the target bot does, indeed, have the tile in question
 //
-// this.braidDb.findUserTile(to.userId, request.data.tileId,
+// this.braidDb.findUserTile(to.userid, request.data.tileId,
 // function(err, userTileRecord) {
 // if (err) {
 // console.error("Failure getting user tile", err);
-// this.sendMessage(this.factory.newErrorReply(request, 500, "Internal error: " + err, new BraidAddress(to.userId, this.config.domain,
+// this.sendMessage(this.factory.newErrorReply(request, 500, "Internal error: " + err, new BraidAddress(to.userid, this.config.domain,
 // BOT_RESOURCE)));
 // } else if (userTileRecord) {
 // var mutationDescriptors = [];
@@ -669,12 +669,12 @@ module.exports = {
 // this.braidDb.findMutation(request.data.tileId, request.data.startingAfter, function(err, mutationRecord) {
 // if (err) {
 // console.error("Failure getting mutation", err);
-// this.sendMessage(this.factory.newErrorReply(request, 500, "Internal error: " + err, new BraidAddress(to.userId,
+// this.sendMessage(this.factory.newErrorReply(request, 500, "Internal error: " + err, new BraidAddress(to.userid,
 // this.config.domain, BOT_RESOURCE)));
 // } else if (mutationRecord) {
 // this.processTileMutationListRequest(request, to, mutationRecord);
 // } else {
-// this.sendMessage(this.factory.newErrorReply(request, 404, "startingAfter mutation not found", new BraidAddress(to.userId,
+// this.sendMessage(this.factory.newErrorReply(request, 404, "startingAfter mutation not found", new BraidAddress(to.userid,
 // this.config.domain, BOT_RESOURCE)));
 // }
 // }.bind(this));
@@ -682,7 +682,7 @@ module.exports = {
 // this.processTileMutationListRequest(request, to);
 // }
 // } else {
-// this.sendMessage(this.factory.newErrorReply(request, 404, "No such tile", new BraidAddress(to.userId, this.config.domain, BOT_RESOURCE)));
+// this.sendMessage(this.factory.newErrorReply(request, 404, "No such tile", new BraidAddress(to.userid, this.config.domain, BOT_RESOURCE)));
 // }
 // }.bind(this));
 // };
@@ -696,12 +696,12 @@ module.exports = {
 // this.braidDb.iterateMutationsAfterIndex(request.data.tileId, index,
 // function(err, cursor) {
 // if (err) {
-// this.sendMessage(this.factory.newErrorReply(request, 500, "Internal error: " + err, new BraidAddress(to.userId, this.config.domain,
+// this.sendMessage(this.factory.newErrorReply(request, 500, "Internal error: " + err, new BraidAddress(to.userid, this.config.domain,
 // BOT_RESOURCE)));
 // } else {
 // cursor.toArray(function(err, mutationRecords) {
 // if (err) {
-// this.sendMessage(this.factory.newErrorReply(request, 500, "Internal error: " + err, new BraidAddress(to.userId, this.config.domain,
+// this.sendMessage(this.factory.newErrorReply(request, 500, "Internal error: " + err, new BraidAddress(to.userid, this.config.domain,
 // BOT_RESOURCE)));
 // } else {
 // var descriptors = [];
@@ -715,7 +715,7 @@ module.exports = {
 // callback();
 // }.bind(this), function(err) {
 // if (err) {
-// this.sendMessage(this.factory.newErrorReply(request, 500, "Internal error: " + err, new BraidAddress(to.userId,
+// this.sendMessage(this.factory.newErrorReply(request, 500, "Internal error: " + err, new BraidAddress(to.userid,
 // this.config.domain, BOT_RESOURCE)));
 // } else {
 // var reply = newTileMutationListReply(request, to, request.data.tileId, descriptors);
@@ -750,15 +750,15 @@ module.exports = {
 //
 // BotManager.prototype.handleTileMutationResendRequest = function(request, to) {
 // // We are being asked to resend a mutation. First we need to make sure that the user associated with this bot actually has that tile
-// this.braidDb.findUserTile(to.userId, request.data.tileId,
+// this.braidDb.findUserTile(to.userid, request.data.tileId,
 // function(err, userTileRecord) {
 // if (err) {
-// this.sendMessage(this.factory.newErrorReply(request, 500, "Internal error: " + err, new BraidAddress(to.userId, this.config.domain,
+// this.sendMessage(this.factory.newErrorReply(request, 500, "Internal error: " + err, new BraidAddress(to.userid, this.config.domain,
 // BOT_RESOURCE)));
 // } else if (userTileRecord) {
 // this.braidDb.findMutation(request.data.tileId, request.data.mutationId, function(err, mutationRecord) {
 // if (err) {
-// this.sendMessage(this.factory.newErrorReply(request, 500, "Internal error: " + err, new BraidAddress(to.userId, this.config.domain,
+// this.sendMessage(this.factory.newErrorReply(request, 500, "Internal error: " + err, new BraidAddress(to.userid, this.config.domain,
 // BOT_RESOURCE)));
 // } else if (mutationRecord) {
 // var mutationMessage = this.factory.newTileMutationMessage(request.from, to, this.factory
@@ -766,12 +766,12 @@ module.exports = {
 // this.sendMessage(mutationMessage);
 // // TODO: if appropriate, we should also send dependencies (files)
 // } else {
-// this.sendMessage(this.factory.newErrorReply(request, 404, "No such tile", new BraidAddress(to.userId, this.config.domain,
+// this.sendMessage(this.factory.newErrorReply(request, 404, "No such tile", new BraidAddress(to.userid, this.config.domain,
 // BOT_RESOURCE)));
 // }
 // }.bind(this));
 // } else {
-// this.sendMessage(this.factory.newErrorReply(request, 404, "No such tile", new BraidAddress(to.userId, this.config.domain, BOT_RESOURCE)));
+// this.sendMessage(this.factory.newErrorReply(request, 404, "No such tile", new BraidAddress(to.userid, this.config.domain, BOT_RESOURCE)));
 // }
 // }.bind(this));
 // };

@@ -33,8 +33,8 @@ describe("bot:", function() {
 		var ping = factory.newPingRequestMessage(new BraidAddress('bob', 'test.com', '12345'), new BraidAddress('joe', 'test.com'));
 		services.messageSwitch.waitForMessage(1000, function(err, reply) {
 			assert(!err, err);
-			assert.equal(reply.to[0].userId, 'bob');
-			assert.equal(reply.from.userId, 'joe');
+			assert.equal(reply.to[0].userid, 'bob');
+			assert.equal(reply.from.userid, 'joe');
 			assert.equal(reply.from.resource, "!bot");
 			done();
 		});

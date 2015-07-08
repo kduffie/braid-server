@@ -220,7 +220,7 @@ BraidFactory.prototype.newRosterEntry = function(targetAddress, resources) {
 		resources = [];
 	}
 	return {
-		userId : targetAddress.userId,
+		userid : targetAddress.userid,
 		domain : targetAddress.domain,
 		resources : resources
 	};
@@ -461,9 +461,9 @@ BraidFactory.prototype.base64Encode = function(value) {
 
 // Database records
 
-BraidFactory.prototype.newAccountRecord = function(userId, domain, passwordHash) {
+BraidFactory.prototype.newAccountRecord = function(userid, domain, passwordHash) {
 	return {
-		userId : userId,
+		userid : userid,
 		domain : domain,
 		password : passwordHash
 	};
@@ -472,19 +472,19 @@ BraidFactory.prototype.newAccountRecord = function(userId, domain, passwordHash)
 BraidFactory.prototype.newSubscriptionRecord = function(targetUserId, targetDomain, subscriberUserId, subscriberDomain) {
 	return {
 		target : {
-			userId : targetUserId,
+			userid : targetUserId,
 			domain : targetDomain
 		},
 		subscriber : {
-			userId : subscriberUserId,
+			userid : subscriberUserId,
 			domain : subscriberDomain
 		}
 	};
 };
 
-BraidFactory.prototype.newUserObjectRecord = function(userId, objectType, objectId) {
+BraidFactory.prototype.newUserObjectRecord = function(userid, objectType, objectId) {
 	return {
-		userId : userId,
+		userid : userid,
 		objectType : objectType,
 		objectId : objectId
 	};

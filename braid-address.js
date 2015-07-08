@@ -4,9 +4,9 @@
  * Braid address
  */
 
-function BraidAddress(userId, domain, resource) {
-	if (userId) {
-		this.userId = userId;
+function BraidAddress(userid, domain, resource) {
+	if (userid) {
+		this.userid = userid;
 	}
 	this.domain = domain;
 	if (resource) {
@@ -16,11 +16,11 @@ function BraidAddress(userId, domain, resource) {
 
 BraidAddress.prototype.asString = function(omitResource) {
 	var result = this.domain;
-	if (this.userId) {
+	if (this.userid) {
 		if (this.domain) {
-			result = result + "/" + this.userId;
+			result = result + "/" + this.userid;
 		} else {
-			result = this.userId;
+			result = this.userid;
 		}
 	}
 	if (this.resource && !omitResource) {
@@ -30,11 +30,11 @@ BraidAddress.prototype.asString = function(omitResource) {
 };
 
 BraidAddress.prototype.equals = function(address, ignoreResource) {
-	return this.userId == address.userId && this.domain == address.domain && (!ignoreResource || this.resource == address.resource);
+	return this.userid == address.userid && this.domain == address.domain && (!ignoreResource || this.resource == address.resource);
 };
 
 function newAddress(address, omitResource) {
-	return new BraidAddress(address.userId, address.domain, omitResource ? null : address.resource);
+	return new BraidAddress(address.userid, address.domain, omitResource ? null : address.resource);
 }
 
 if (typeof module !== 'undefined') {
