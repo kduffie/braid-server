@@ -52,7 +52,7 @@
 		};
 		var loc = getLocation(document.location);
 		var nonSecure = loc.protocol === 'http:';
-		var braidClient = new BraidClient(loc.hostname, loc.port, nonSecure);
+		var braidClient = new BraidClient(loc.hostname, loc.port, null, nonSecure);
 		var connected = false;
 		var connecting = false;
 		
@@ -91,7 +91,7 @@
 			    if (err) {
 			    	alert(err);
 			    } else {			    
-					braidClient.sendHello(factory.newHelloPayload('html-test-client', '0.2.0'), function(err, reply) {
+					braidClient.sendHello('html-test-client', '0.2.0', {}, function(err, reply) {
 						getElement('msgHello').innerText = JSON.stringify(reply.data);
 					});
 				}

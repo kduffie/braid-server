@@ -10,7 +10,7 @@
 	},
 	"client" : {
 		"enabled" : true,
-		"ssl" : true,
+		"ssl" : false,
 		"port" : 25555,
 		"hello" : {
 		}
