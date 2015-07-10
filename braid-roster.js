@@ -110,6 +110,10 @@ RosterManager.prototype._handleRosterMessage = function(message) {
 				throw err;
 			}
 			var entries = [];
+			// Add "myself" to the list
+			records.push({
+				target : new BraidAddress(message.from.userid, message.from.domain)
+			});
 			async.each(records, function(record, callback) {
 				var address = newAddress(record.target);
 				var activeUser = this.getOrCreateActiveUser(address);

@@ -93,8 +93,8 @@ BotManager.prototype.handleMessage = function(message, to, isDirected) {
 					break;
 				default:
 					if (isDirected) {
-						this.sendMessage(this.factory.newErrorReply(message, 406, "This request type is not supported", new BraidAddress(to.userid,
-								this.config.domain, BOT_RESOURCE)));
+						this.sendMessage(this.factory.newErrorReplyMessage(message, new BraidAddress(to.userid, this.config.domain, BOT_RESOURCE), 406,
+								"This request type is not supported"));
 					}
 					break;
 				}
