@@ -13,7 +13,8 @@ if (typeof require !== 'undefined') {
 }
 
 // braid-address
-function BraidClient(domain, port, server) {
+function BraidClient(domain, port, server, nonsecure) {
+	this.nonsecure = nonsecure
 	this.domain = domain;
 	this.server = server;
 	if (!server) {
@@ -36,7 +37,11 @@ BraidClient.prototype.onPresenceNotification = function(handler) {
 BraidClient.prototype.connect = function(callback) {
 	console.log(this.userid + ": connect");
 	this.connectCallback = callback;
-	this.socket = new WebSocket("ws://" + this.server + ":" + this.port + "/braid-client", []);
+	var protocol = "wss";
+	if (this.nonsecure) {
+		protocol = "ws"
+	}
+	this.socket = new WebSocket(protocol + "://" + this.server + ":" + this.port + "/braid-client", []);
 	if (isWebClient) {
 		this.socket.onopen = this.onSocketOpen.bind(this);
 		this.socket.onerror = this.onSocketError.bind(this);

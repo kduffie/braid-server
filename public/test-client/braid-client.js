@@ -5,6 +5,7 @@ var BraidAddress;
 var isWebClient = true;
 
 if (typeof require !== 'undefined') {
+	newAddress = require('./braid-address').newAddress;
 	BraidAddress = require('./braid-address').BraidAddress;
 	factory = require('./braid-factory');
 	var WebSocket = require('ws');
@@ -12,8 +13,8 @@ if (typeof require !== 'undefined') {
 }
 
 // braid-address
-function BraidClient(domain, port, nonSecure, server) {
-	this.nonSecure = nonSecure;
+function BraidClient(domain, port, server, nonsecure) {
+	this.nonsecure = nonsecure
 	this.domain = domain;
 	this.server = server;
 	if (!server) {
@@ -29,12 +30,16 @@ BraidClient.prototype.onImReceived = function(handler) {
 	this.imHandler = handler;
 };
 
+BraidClient.prototype.onPresenceNotification = function(handler) {
+	this.presenceHandler = handler;
+};
+
 BraidClient.prototype.connect = function(callback) {
 	console.log(this.userid + ": connect");
 	this.connectCallback = callback;
-	var protocol = 'wss';
-	if (this.nonSecure) {
-		protocol = 'ws'
+	var protocol = "wss";
+	if (this.nonsecure) {
+		protocol = "ws"
 	}
 	this.socket = new WebSocket(protocol + "://" + this.server + ":" + this.port + "/braid-client", []);
 	if (isWebClient) {
@@ -50,15 +55,15 @@ BraidClient.prototype.connect = function(callback) {
 	}
 };
 
-BraidClient.prototype.sendHello = function(payload, callback) {
-	var hello = factory.newHelloRequest(payload, this.address);
+BraidClient.prototype.sendHello = function(product, version, capabilities, callback) {
+	var hello = factory.newHelloRequestMessage(this.address, null, product, version, capabilities);
 	this.sendRequest(hello, callback);
 };
 
 BraidClient.prototype.register = function(userid, password, callback) {
 	this.userid = userid;
 	console.log(this.userid + ": register", userid);
-	var request = factory.newRegisterRequest(userid, password);
+	var request = factory.newRegisterRequestMessage(userid, password);
 	this.sendRequest(request, function(err, reply) {
 		if (err) {
 			if (callback) {
@@ -99,7 +104,7 @@ BraidClient.prototype.getErrorDisplay = function(reply) {
 BraidClient.prototype.authenticate = function(userid, password, callback) {
 	this.userid = userid;
 	console.log(this.userid + ": authenticate", userid);
-	var request = factory.newAuthRequest(userid, password);
+	var request = factory.newAuthRequestMessage(userid, password);
 	this.sendRequest(request, function(err, reply) {
 		if (err) {
 			if (callback) {
@@ -158,7 +163,7 @@ BraidClient.prototype.parseAddressEntry = function(value) {
 BraidClient.prototype.pingEndpoint = function(address, callback) {
 	console.log(this.userid + ": pingEndpoint", address);
 	to = this.parseAddressEntry(address);
-	var request = factory.newPingRequest(to);
+	var request = factory.newPingRequestMessage(null, to);
 	this.sendRequest(request, function(err, reply) {
 		if (err) {
 			if (callback) {
@@ -174,27 +179,27 @@ BraidClient.prototype.pingEndpoint = function(address, callback) {
 
 BraidClient.prototype.sendTextMessage = function(user, textMessage) {
 	var to = this.parseAddressEntry(user);
-	var message = factory.newTextMessage(textMessage, to);
+	var message = factory.newIMMessage(null, to, textMessage);
 	this.sendMessage(message);
 };
 
 BraidClient.prototype.requestRoster = function(callback) {
 	console.log(this.userid + ": requestRoster");
-	var cast = factory.newRosterRequest();
+	var cast = factory.newRosterRequestMessage();
 	this.sendRequest(cast, callback);
 };
 
 BraidClient.prototype.subscribe = function(user) {
 	console.log(this.userid + ": subscribe", user);
 	var to = this.parseAddressEntry(user);
-	var cast = factory.newSubscribeMessage(to);
+	var cast = factory.newSubscribeMessage(null, to);
 	this.sendCast(cast);
 };
 
 BraidClient.prototype.unsubscribe = function(user) {
 	console.log(this.userid + ": unsubscribe", user);
 	var to = this.parseAddressEntry(user);
-	var cast = factory.newUnsubscribeMessage(to);
+	var cast = factory.newUnsubscribeMessage(null, to);
 	this.sendCast(cast);
 };
 
@@ -290,6 +295,9 @@ BraidClient.prototype.handleUnsubscribe = function(message) {
 };
 
 BraidClient.prototype.handlePresence = function(message) {
+	if (this.presenceHandler) {
+		this.presenceHandler(message);
+	}
 	if (message.data && message.data.address) {
 		var address = newAddress(message.data.address);
 		var rosterItem = this.roster[address.asString(true)];
@@ -318,7 +326,7 @@ BraidClient.prototype.handlePresence = function(message) {
 	}
 };
 BraidClient.prototype.handlePingRequest = function(message) {
-	var reply = factory.newReply(message, this.address, message.from);
+	var reply = factory.newPingReplyMessage(message, this.address);
 	this.sendReply(reply);
 };
 

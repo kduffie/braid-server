@@ -175,7 +175,7 @@ BraidFactory.prototype.newCallbackReplyMessage = function(requestMessage, from) 
 };
 
 BraidFactory.prototype.newCloseRequestMessage = function(from, to) {
-	return this.newRequestMessage("close", to, from, null);
+	return this.newRequestMessage("close", from, to, null);
 };
 
 BraidFactory.prototype.newCloseReplyMessage = function(requestMessage, from) {

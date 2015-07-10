@@ -104,7 +104,7 @@ BraidServer.prototype.startServer = function(callback) {
 			federationPort = this.config.federation.port;
 		}
 		this.federationApp = express();
-		this.federationApp.use(express.static(path.join(__dirname, 'public')));
+		this.federationApp.use(express.static(path.join(__dirname, 'fed_public')));
 
 		if (this.config.federation && !this.config.federation.ssl) {
 			console.log("Using unencrypted federation connections");

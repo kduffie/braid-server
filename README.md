@@ -9,7 +9,7 @@ Braid is a cross-platform solution for collaboration in a new way -- based on th
 This project is an open-source implementation of a server that implements the Braid protocol.  This
 implementation is built on node.js and its only mandatory external dependency is MongoDB.
 
-If you want to learn a lot more about Braid, visit [our wiki](https://github.com/kduffie/braid-server/wiki)
+If you want to learn a lot more about Braid, visit [our wiki](https://github.com/BraidApps/braid-server/wiki)
 
 ## Installation
 
@@ -67,7 +67,7 @@ but allows you to see the basic interactions between a client and server.
 
 Note that you can't federate your braid server until you can update DNS entries so that the server is associated with the braid service.
 
-Learn more on our [wiki](https://github.com/kduffie/braid-server/wiki)
+Learn more on our [wiki](https://github.com/BraidApps/braid-server/wiki)
 
 ## Status
 
