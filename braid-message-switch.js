@@ -51,13 +51,13 @@ MessageSwitch.prototype.registerResource = function(resource, domain, messageHan
 	};
 };
 
-MessageSwitch.prototype._getUserKey = function(userId, domain) {
-	return domain + "/" + userId;
+MessageSwitch.prototype._getUserKey = function(userid, domain) {
+	return domain + "/" + userid;
 };
 
-MessageSwitch.prototype.registerUser = function(userId, domain, messageHandler) {
+MessageSwitch.prototype.registerUser = function(userid, domain, messageHandler) {
 	this.stats.registrations.user++;
-	var key = this._getUserKey(userId, domain);
+	var key = this._getUserKey(userid, domain);
 	var list = this.userRegistrations[key];
 	if (!list) {
 		list = {
@@ -158,12 +158,10 @@ MessageSwitch.prototype.deliver = function(message, callback) {
 	tasks.push(function(callback) {
 		if (message.to) {
 			var handlers = [];
-			console.log("message-switch:debug: ", message.to);
 			for (var i = 0; i < message.to.length; i++) {
-				console.log("message-switch:debug: recipient", message.to[i]);
 				var recipient = message.to[i];
-				if (recipient.userId && recipient.domain) {
-					var key = this._getUserKey(recipient.userId, recipient.domain);
+				if (recipient.userid && recipient.domain) {
+					var key = this._getUserKey(recipient.userid, recipient.domain);
 					var list = this.userRegistrations[key];
 					if (list) {
 						for ( var item in list) {

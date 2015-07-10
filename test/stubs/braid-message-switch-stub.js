@@ -9,7 +9,7 @@ MessageSwitchStub.prototype.initialize = function() {
 MessageSwitchStub.prototype.registerResource = function(resource, domain, messageHandler) {
 };
 
-MessageSwitchStub.prototype.registerUser = function(userId, domain, messageHandler) {
+MessageSwitchStub.prototype.registerUser = function(userid, domain, messageHandler) {
 };
 
 MessageSwitchStub.prototype.registerForRequests = function(requestType, messageHandler) {

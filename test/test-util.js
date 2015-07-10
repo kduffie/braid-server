@@ -101,13 +101,13 @@ function createTestConfig(domain, dbName, clientPort, serverPort, federationTime
 		},
 		"debug" : {
 			"messageSwitch" : {
-				"logMessages" : false
+				"logMessages" : true
 			},
 			"clientSessions" : {
-				"logMessages" : false
+				"logMessages" : true
 			},
 			"federation" : {
-				"logMessages" : false,
+				"logMessages" : true,
 				"idlePoll" : 300
 			}
 		}

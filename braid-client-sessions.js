@@ -34,6 +34,7 @@ function Session(config, services, connection, sessionId, manager) {
 	this.transmitQueue = [];
 	this.authenticationServerAddress = new BraidAddress(null, this.config.domain, "!auth");
 	this.rosterServerAddress = new BraidAddress(null, this.config.domain, "!roster");
+	this.address = new BraidAddress(null, this.config.domain);
 }
 
 Session.prototype.initialize = function() {
@@ -100,7 +101,7 @@ Session.prototype.activateSession = function(message) {
 	// We were listening on everything with the resource, but now, instead, we'll listen to
 	// all messages sent to the user -- even without a resource
 	this.messageSwitch.unregister(this.portSwitchPort);
-	this.portSwitchPort = this.messageSwitch.registerUser(this.userAddress.userId, this.userAddress.domain, this._handleSwitchedMessage.bind(this));
+	this.portSwitchPort = this.messageSwitch.registerUser(this.userAddress.userid, this.userAddress.domain, this._handleSwitchedMessage.bind(this));
 	this.state = 'active';
 	console.log("Firing client-session-activated", message);
 	this.eventBus.fire('client-session-activated', this);
@@ -112,14 +113,14 @@ Session.prototype.onSocketMessageReceived = function(msg) {
 		return;
 	}
 	if (this.config.debug && this.config.debug.clientSessions && this.config.debug.clientSessions.logMessages) {
-		console.log("client: RX (" + this.userId + ")", message);
+		console.log("client: RX (" + this.userid + ")", message);
 	}
 	if (!message.type) {
-		this.sendErrorResponseIfAppropriate(message, "Invalid message.  Missing type.", 400, true);
+		this.sendErrorResponseIfAppropriate(message, this.address, "Invalid message.  Missing type.", 400, true);
 		return;
 	}
 	if (!message.request) {
-		this.sendErrorResponseIfAppropriate(message, "Invalid message.  Missing request.", 400, true);
+		this.sendErrorResponseIfAppropriate(message, this.address, "Invalid message.  Missing request.", 400, true);
 		return;
 	}
 	if (message.to) {
@@ -134,12 +135,11 @@ Session.prototype.onSocketMessageReceived = function(msg) {
 			resource : this.resource
 		};
 	}
-	if (message.request === 'hello') {
+	if (message.request === 'hello' && (!message.to || message.to.length === 0)) {
 		this.clientHello = message;
 		this.clientCapabilities = this.clientHello.capabilities;
 		var package = require('./package.json');
-		var reply = this.factory.newHelloReply(message, this.factory.newHelloPayload(package.name, package.version, this.config.client.capabilities),
-				this.userAddress);
+		var reply = this.factory.newHelloReplyMessage(message, this.address, package.name, package.version, this.config.client.capabilities);
 		this.sendMessage(reply);
 	} else {
 		try {
@@ -155,8 +155,7 @@ Session.prototype.onSocketMessageReceived = function(msg) {
 					break;
 				case 'ping':
 					if (!message.to || message.to.length === 0) {
-						var pingReply = this.factory.newReply(message, this.userAddress, new BraidAddress(null, this.config.domain));
-						this.sendMessage(pingReply);
+						this.sendMessage(this.factory.newPingReplyMessage(message, this.address));
 						return;
 					}
 				default:
@@ -165,12 +164,12 @@ Session.prototype.onSocketMessageReceived = function(msg) {
 				this.messageSwitch.deliver(message);
 				break;
 			default:
-				this.sendErrorResponseIfAppropriate(message, "braid-client-sessions: Invalid state: " + this.state, 400, true);
+				this.sendErrorResponseIfAppropriate(message, this.address, "braid-client-sessions: Invalid state: " + this.state, 400, true);
 				break;
 			}
 		} catch (err) {
 			console.error("braid-clients.onSocketMessageReceived", err, err.stack);
-			this.sendErrorResponseIfAppropriate(message, "Internal error: " + err, 500, true);
+			this.sendErrorResponseIfAppropriate(message, this.address, "Internal error: " + err, 500, true);
 		}
 	}
 };
@@ -184,9 +183,9 @@ Session.prototype.parseMessage = function(text) {
 	}
 };
 
-Session.prototype.sendErrorResponseIfAppropriate = function(message, errorMessage, errorCode, closeSocket) {
+Session.prototype.sendErrorResponseIfAppropriate = function(message, from, errorMessage, errorCode, closeSocket) {
 	if (message.type === 'request' || message.type === 'cast') {
-		var reply = this.factory.newErrorReply(message, errorCode, errorMessage);
+		var reply = this.factory.newErrorReplyMessage(message, from, errorCode, errorMessage);
 		this.sendMessage(reply, function() {
 			if (closeSocket) {
 				this.close();

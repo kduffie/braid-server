@@ -7,7 +7,7 @@ var portAddress = {
 
 var userAddress = {
 	domain : 'test.com',
-	userId : 'joe',
+	userid : 'joe',
 	resource : '12345'
 };
 
@@ -59,10 +59,10 @@ describe("auth-server:", function() {
 	});
 
 	it("verifies registration and auth", function(done) {
-		var registerMessage = services.factory.newRegisterRequest(userAddress.userId, "pa55word", authAddress, portAddress);
+		var registerMessage = services.factory.newRegisterRequestMessage(userAddress.userid, "pa55word", authAddress, portAddress);
 		expectedType = 'register';
 		handlerCallback = function() {
-			var authMessage = services.factory.newAuthRequest(userAddress.userId, "pa55word", authAddress, portAddress);
+			var authMessage = services.factory.newAuthRequestMessage(userAddress.userid, "pa55word", authAddress, portAddress);
 			expectedType = 'auth';
 			services.messageSwitch.deliver(authMessage);
 			handlerCallback = done;

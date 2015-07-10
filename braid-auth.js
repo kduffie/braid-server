@@ -24,13 +24,13 @@ AuthServer.prototype.initialize = function(configuration, domainServices) {
 	this.initialized = true;
 };
 
-AuthServer.prototype._createUser = function(userId, password, callback) {
+AuthServer.prototype._createUser = function(userid, password, callback) {
 	assert(this.initialized);
 	bcrypt.genSalt(10, function(err, salt) {
 		bcrypt.hash(password, salt, function(err, hash) {
-			var userRecord = this.factory.newAccountRecord(userId, this.config.domain, hash);
+			var userRecord = this.factory.newAccountRecord(userid, this.config.domain, hash);
 			this.braidDb.insertAccount(userRecord, function() {
-				this.userCache.set(userId, userRecord);
+				this.userCache.set(userid, userRecord);
 				this.eventBus.fire('user-added', userRecord);
 				callback(null, userRecord);
 			}.bind(this));
@@ -41,34 +41,34 @@ AuthServer.prototype._createUser = function(userId, password, callback) {
 AuthServer.prototype._processRegisterMessage = function(message) {
 	assert(this.initialized);
 	if (!message.data || !message.data.user || !message.data.password) {
-		this.messageSwitch.deliver(this.factory.newErrorReply(message, 400, "Missing credentials", this.address));
+		this.messageSwitch.deliver(this.factory.newErrorReplyMessage(message, this.address, 400, "Missing credentials"));
 		return;
 	}
-	var userId = message.data.user;
+	var userid = message.data.user;
 	var password = message.data.password;
-	if (!userId.match(/[a-z][a-z\.0-9]?/)) {
-		this.messageSwitch.deliver(this.factory.newErrorReply(message, 406, "Invalid userId", this.address));
-	} else if (userId.length < 2 || userId.length > 64) {
-		this.messageSwitch.deliver(this.factory.newErrorReply(message, 406, "UserId must be 2 to 64 characters", this.address));
+	if (!userid.match(/[a-z][a-z\.0-9]?/)) {
+		this.messageSwitch.deliver(this.factory.newErrorReplyMessage(message, this.address, 406, "Invalid userid"));
+	} else if (userid.length < 2 || userid.length > 64) {
+		this.messageSwitch.deliver(this.factory.newErrorReplyMessage(message, this.address, 406, "UserId must be 2 to 64 characters"));
 	} else if (password.length < 4 || password.length > 64) {
-		this.messageSwitch.deliver(this.factory.newErrorReply(message, 406, "Password must be 4 to 64 characters", this.address));
+		this.messageSwitch.deliver(this.factory.newErrorReplyMessage(message, this.address, 406, "Password must be 4 to 64 characters"));
 	} else {
-		this.getUserRecord(userId, function(err, existing) {
+		this.getUserRecord(userid, function(err, existing) {
 			if (err) {
 				console.error(err);
 				console.trace();
-				this.messageSwitch.deliver(this.factory.newErrorReply(message, 500, "Internal error: " + err, this.address));
+				this.messageSwitch.deliver(this.factory.newErrorReplyMessage(message, this.address, 500, "Internal error: " + err));
 			} else if (existing) {
-				this.messageSwitch.deliver(this.factory.newErrorReply(message, 409, "UserId is not available", this.address));
+				this.messageSwitch.deliver(this.factory.newErrorReplyMessage(message, this.address, 409, "UserId is not available"));
 			} else {
-				this._createUser(userId, password, function(err, user) {
+				this._createUser(userid, password, function(err, user) {
 					if (err) {
 						console.error(err);
 						console.trace();
-						this.messageSwitch.deliver(this.factory.newErrorReply(message, 500, "Internal error: " + err, this.address));
+						this.messageSwitch.deliver(this.factory.newErrorReplyMessage(message, this.address, 500, "Internal error: " + err));
 					} else {
-						var clientAddress = new BraidAddress(userId, this.config.domain, message.from.resource);
-						this.messageSwitch.deliver(this.factory.newReply(message, this.address, clientAddress));
+						var clientAddress = new BraidAddress(userid, this.config.domain, message.from.resource);
+						this.messageSwitch.deliver(this.factory.newRegisterReplyMessage(message, this.address, clientAddress));
 					}
 				}.bind(this));
 			}
@@ -76,9 +76,9 @@ AuthServer.prototype._processRegisterMessage = function(message) {
 	}
 };
 
-AuthServer.prototype.getUserRecord = function(userId, callback) {
+AuthServer.prototype.getUserRecord = function(userid, callback) {
 	assert(this.initialized);
-	var record = this.userCache.get(userId);
+	var record = this.userCache.get(userid);
 	if (record) {
 		if (record.notFound) {
 			callback(null, null);
@@ -86,14 +86,14 @@ AuthServer.prototype.getUserRecord = function(userId, callback) {
 			callback(null, record);
 		}
 	} else {
-		this.braidDb.findAccountById(userId, function(err, record) {
+		this.braidDb.findAccountById(userid, function(err, record) {
 			if (err) {
 				callback(err);
 			} else if (record) {
-				this.userCache.set(userId, record);
+				this.userCache.set(userid, record);
 				callback(null, record);
 			} else {
-				this.userCache.set(userId, {
+				this.userCache.set(userid, {
 					notFound : true
 				});
 				callback(null, null);
@@ -102,9 +102,9 @@ AuthServer.prototype.getUserRecord = function(userId, callback) {
 	}
 };
 
-AuthServer.prototype._authenticateUser = function(userId, password, callback) {
+AuthServer.prototype._authenticateUser = function(userid, password, callback) {
 	assert(this.initialized);
-	this.getUserRecord(userId, function(err, user) {
+	this.getUserRecord(userid, function(err, user) {
 		if (err) {
 			callback(err);
 		} else if (user) {
@@ -126,19 +126,19 @@ AuthServer.prototype._authenticateUser = function(userId, password, callback) {
 AuthServer.prototype._processAuthMessage = function(message) {
 	assert(this.initialized);
 	if (!message.data || !message.data.user) {
-		this.messageSwitch.deliver(this.factory.newErrorReply(message, 400, "Missing credentials", this.address));
+		this.messageSwitch.deliver(this.factory.newErrorReplyMessage(message, this.address, 400, "Missing credentials"));
 		return;
 	}
 	this._authenticateUser(message.data.user, message.data.password, function(err, user) {
 		if (err) {
 			console.error(err);
 			console.trace();
-			this.messageSwitch.deliver(this.factory.newErrorReply(message, 500, "Internal error: " + err, this.address));
+			this.messageSwitch.deliver(this.factory.newErrorReplyMessage(message, this.address, 500, "Internal error: " + err));
 		} else if (!user) {
-			this.messageSwitch.deliver(this.factory.newErrorReply(message, 401, "Unauthorized", this.address));
+			this.messageSwitch.deliver(this.factory.newErrorReplyMessage(message, this.address, 401, "Unauthorized"));
 		} else {
 			var clientAddress = new BraidAddress(message.data.user, this.config.domain, message.from.resource);
-			this.messageSwitch.deliver(this.factory.newReply(message, this.address, clientAddress));
+			this.messageSwitch.deliver(this.factory.newAuthReplyMessage(message, this.address, clientAddress));
 		}
 	}.bind(this));
 };
@@ -154,6 +154,9 @@ AuthServer.prototype._handleMessage = function(message) {
 			break;
 		case 'auth':
 			this._processAuthMessage(message);
+			break;
+		case 'ping':
+			this.messageSwitch.deliver(this.factory.newPingReplyMessage(message, this.address));
 			break;
 		default:
 			this.messageSwitch.deliver(this.factory.newUnhandledMessageErrorReply(message, this.address));

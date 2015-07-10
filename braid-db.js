@@ -11,11 +11,14 @@ BraidDb.prototype.initialize = function(configuration, callback) {
 	this.options = this.config.mongo.options;
 	this.accounts = null;
 	this.subscriptions = null;
-	this.userTiles = null;
+	this.userObjects = null;
 	this.tiles = null;
+	this.groups = null;
+	this.sharedObjects = null;
 	this.mutations = null;
 	this.files = null;
-	this.tileProperties = null;
+	this.properties = null;
+	this.records = null;
 	this.mutationReverseSort = {
 		created : -1,
 		originator : -1
@@ -70,10 +73,12 @@ BraidDb.prototype._setup = function(callback) {
 					this._setupAccounts.bind(this),
 					this._setupSubscriptions.bind(this),
 					this._setupTiles.bind(this),
-					this._setupUserTiles.bind(this),
+					this._setupGroups.bind(this),
+					this._setupUserObjects.bind(this),
 					this._setupMutations.bind(this),
 					this._setupFiles.bind(this),
-					this._setupTileProperties.bind(this) ], function(err) {
+					this._setupProperties.bind(this),
+					this._setupRecords.bind(this) ], function(err) {
 		if (err) {
 			callback(err);
 		} else {
@@ -85,7 +90,7 @@ BraidDb.prototype._setup = function(callback) {
 BraidDb.prototype._setupAccounts = function(callback) {
 	this.accounts = this.db.collection("accounts");
 	this.accounts.ensureIndex({
-		userId : 1
+		userid : 1
 	}, {
 		unique : true,
 		w : 1
@@ -97,7 +102,7 @@ BraidDb.prototype._setupSubscriptions = function(callback) {
 	var steps = [];
 	steps.push(function(callback) {
 		this.subscriptions.ensureIndex({
-			"target.userId" : 1,
+			"target.userid" : 1,
 			"target.domain" : 1
 		}, {
 			unique : true,
@@ -106,7 +111,7 @@ BraidDb.prototype._setupSubscriptions = function(callback) {
 	}.bind(this));
 	steps.push(function(callback) {
 		this.subscriptions.ensureIndex({
-			"subscriber.userId" : 1,
+			"subscriber.userid" : 1,
 			"subscriber.domain" : 1
 		}, {
 			w : 1
@@ -126,23 +131,29 @@ BraidDb.prototype._setupTiles = function(callback) {
 			w : 1
 		}, callback);
 	}.bind(this));
+	async.parallel(steps, callback);
+};
+
+BraidDb.prototype._setupGroups = function(callback) {
+	this.groups = this.db.collection("groups");
+	var steps = [];
 	steps.push(function(callback) {
-		this.tiles.ensureIndex({
-			"members.userId" : 1,
-			"members.domain" : 1
+		this.groups.ensureIndex({
+			groupId : 1
 		}, {
-			unique : false,
+			unique : true,
 			w : 1
 		}, callback);
 	}.bind(this));
 	async.parallel(steps, callback);
 };
 
-BraidDb.prototype._setupUserTiles = function(callback) {
-	this.userTiles = this.db.collection("user_tiles");
-	this.userTiles.ensureIndex({
-		userId : 1,
-		tileId : 1
+BraidDb.prototype._setupUserObjects = function(callback) {
+	this.userObjects = this.db.collection("userObjects");
+	this.userObjects.ensureIndex({
+		userid : 1,
+		objectType : 1,
+		objectId : 1
 	}, {
 		unique : true,
 		w : 1
@@ -154,7 +165,8 @@ BraidDb.prototype._setupMutations = function(callback) {
 	var steps = [];
 	steps.push(function(callback) {
 		this.mutations.ensureIndex({
-			tileId : 1,
+			objectType : 1,
+			objectId : 1,
 			mutationId : 1,
 			integrated : 1
 		}, {
@@ -164,7 +176,8 @@ BraidDb.prototype._setupMutations = function(callback) {
 	}.bind(this));
 	steps.push(function(callback) {
 		this.mutations.ensureIndex({
-			tileId : 1,
+			objectType : 1,
+			objectId : 1,
 			mutationId : 1,
 			integrated : 1,
 			index : 1
@@ -175,7 +188,8 @@ BraidDb.prototype._setupMutations = function(callback) {
 	}.bind(this));
 	steps.push(function(callback) {
 		this.mutations.ensureIndex({
-			tileId : 1,
+			objectType : 1,
+			objectId : 1,
 			integrated : 1,
 			created : -1,
 			originator : -1
@@ -186,7 +200,8 @@ BraidDb.prototype._setupMutations = function(callback) {
 	}.bind(this));
 	steps.push(function(callback) {
 		this.mutations.ensureIndex({
-			tileId : 1,
+			objectType : 1,
+			objectId : 1,
 			integrated : 1,
 			created : 1,
 			originator : 1
@@ -201,22 +216,52 @@ BraidDb.prototype._setupMutations = function(callback) {
 BraidDb.prototype._setupFiles = function(callback) {
 	this.files = this.db.collection("files");
 	this.files.ensureIndex({
-		fileId : 1
+		objectType : 1,
+		objectId : 1,
+		name : 1
 	}, {
 		unique : true,
 		w : 1
 	}, callback);
 };
 
-BraidDb.prototype._setupTileProperties = function(callback) {
-	this.tileProperties = this.db.collection("tile_properties");
-	this.tileProperties.ensureIndex({
-		tileId : 1,
+BraidDb.prototype._setupProperties = function(callback) {
+	this.properties = this.db.collection("properties");
+	this.properties.ensureIndex({
+		objectType : 1,
+		objectId : 1,
 		name : 1
 	}, {
 		unique : true,
 		w : 1
 	}, callback);
+};
+
+BraidDb.prototype._setupRecords = function(callback) {
+	this.records = this.db.collection("records");
+	var steps = [];
+	steps.push(function(callback) {
+		this.records.ensureIndex({
+			objectType : 1,
+			objectId : 1,
+			recordId : 1,
+			sort : 1
+		}, {
+			unique : true,
+			w : 1
+		}, callback);
+	}.bind(this));
+	steps.push(function(callback) {
+		this.records.ensureIndex({
+			objectType : 1,
+			objectId : 1,
+			sort : -1
+		}, {
+			unique : true,
+			w : 1
+		}, callback);
+	}.bind(this));
+	async.parallel(steps, callback);
 };
 
 BraidDb.prototype.insertAccount = function(record, callback) {
@@ -225,9 +270,9 @@ BraidDb.prototype.insertAccount = function(record, callback) {
 	}, callback);
 };
 
-BraidDb.prototype.findAccountById = function(userId, callback /* (err, record) */) {
+BraidDb.prototype.findAccountById = function(userid, callback /* (err, record) */) {
 	this.accounts.findOne({
-		userId : userId
+		userid : userid
 	}, callback);
 };
 
@@ -244,32 +289,32 @@ BraidDb.prototype.insertSubscription = function(record, callback) {
 
 BraidDb.prototype.findSubscribersByTarget = function(targetUserId, targetDomain, callback /* (err, records) */) {
 	this.subscriptions.find({
-		"target.userId" : targetUserId,
+		"target.userid" : targetUserId,
 		"target.domain" : targetDomain
 	}).toArray(callback);
 };
 
 BraidDb.prototype.findSubscription = function(targetUserId, targetDomain, subscriberUserId, subscriberDomain, callback /* (err, record) */) {
 	this.subscriptions.findOne({
-		"target.userId" : targetUserId,
+		"target.userid" : targetUserId,
 		"target.domain" : targetDomain,
-		"subscriber.userId" : subscriberUserId,
+		"subscriber.userid" : subscriberUserId,
 		"subscriber.domain" : subscriberDomain
 	}, callback);
 };
 
 BraidDb.prototype.findTargetsBySubscriber = function(subscriberUserId, subscriberDomain, callback /* (err, records) */) {
 	this.subscriptions.find({
-		"subscriber.userId" : subscriberUserId,
+		"subscriber.userid" : subscriberUserId,
 		"subscriber.domain" : subscriberDomain
 	}).toArray(callback);
 };
 
 BraidDb.prototype.removeSubscription = function(targetUserId, targetDomain, subscriberUserId, subscriberDomain, callback) {
 	this.subscriptions.deleteOne({
-		"target.userId" : targetUserId,
+		"target.userid" : targetUserId,
 		"target.domain" : targetDomain,
-		"subscriber.userId" : subscriberUserId,
+		"subscriber.userid" : subscriberUserId,
 		"subscriber.domain" : subscriberDomain
 	}, {
 		w : 1
@@ -288,28 +333,37 @@ BraidDb.prototype.findTileById = function(tileId, callback /* (err, record) */) 
 	}, callback);
 };
 
-BraidDb.prototype.findTilesByMember = function(member, callback /* (err, records) */) {
-	this.tiles.find({
-		members : {
-			"$elemMatch" : {
-				userId : member.userId,
-				domain : member.domain
-			}
-		}
-	}).toArray(callback);
-};
-
-BraidDb.prototype.insertUserTile = function(record, callback) {
-	this.userTiles.insert(record, {
+BraidDb.prototype.insertGroup = function(record, callback) {
+	this.groups.insert(record, {
 		w : 1
 	}, callback);
 };
 
-BraidDb.prototype.findUserTile = function(userId, tileId, callback /* (err, record) */) {
-	this.userTiles.findOne({
-		userId : userId,
-		tileId : tileId
+BraidDb.prototype.findGroupById = function(groupId, callback /* (err, record) */) {
+	this.groups.findOne({
+		groupId : groupId
 	}, callback);
+};
+
+BraidDb.prototype.insertUserObject = function(record, callback) {
+	this.userObjects.insert(record, {
+		w : 1
+	}, callback);
+};
+
+BraidDb.prototype.findUserObject = function(userid, objectType, objectId, callback /* (err, record) */) {
+	this.userTiles.findOne({
+		userid : userid,
+		objectType : objectType,
+		objectId : objectId
+	}, callback);
+};
+
+BraidDb.prototype.iterateUserObjects = function(userid, callback /* (err, cursor) */) {
+	var cursor = this.userObjects.find({
+		userid : userid
+	});
+	callback(null, cursor);
 };
 
 BraidDb.prototype.insertMutation = function(record, callback) {
@@ -318,30 +372,34 @@ BraidDb.prototype.insertMutation = function(record, callback) {
 	}, callback);
 };
 
-BraidDb.prototype.findMutation = function(tileId, mutationId, callback /* (err, record) */) {
+BraidDb.prototype.findMutation = function(objectType, objectId, mutationId, callback /* (err, record) */) {
 	this.mutations.findOne({
-		tileId : tileId,
+		objectType : objectType,
+		objectId : objectId,
 		mutationId : mutationId
 	}, callback);
 };
 
-BraidDb.prototype.isMutationExists = function(tileId, mutationId, integratedOnly, unintegratedOnly, callback /* (exists) */) {
+BraidDb.prototype.isMutationExists = function(objectType, objectId, mutationId, integratedOnly, unintegratedOnly, callback /* (exists) */) {
 	var query;
 	if (integratedOnly) {
 		query = {
-			tileId : tileId,
+			objectType : objectType,
+			objectId : objectId,
 			mutationId : mutationId,
 			integrated : true
 		};
 	} else if (unintegratedOnly) {
 		query = {
-			tileId : tileId,
+			objectType : objectType,
+			objectId : objectId,
 			mutationId : mutationId,
 			integrated : false
 		};
 	} else {
 		query = {
-			tileId : tileId,
+			objectType : objectType,
+			objectId : objectId,
 			mutationId : mutationId
 		};
 	}
@@ -354,9 +412,10 @@ BraidDb.prototype.isMutationExists = function(tileId, mutationId, integratedOnly
 	}.bind(this));
 };
 
-BraidDb.prototype.getLatestMutation = function(tileId, callback /* (err, record) */) {
+BraidDb.prototype.getLatestMutation = function(objectType, objectId, callback /* (err, record) */) {
 	this.mutations.find({
-		tileId : tileId,
+		objectType : objectType,
+		objectId : objectId,
 		integrated : true
 	}).sort(this.mutationReverseSort).nextObject(callback);
 };
@@ -373,14 +432,27 @@ BraidDb.prototype.decrementTilePendingMutations = function(tileId, callback) {
 	}, callback);
 };
 
-BraidDb.prototype.countMutations = function(tileId, callback /* (err, count) */) {
+BraidDb.prototype.decrementGroupPendingMutations = function(groupId, callback) {
+	this.groups.update({
+		groupId : groupId
+	}, {
+		$incr : {
+			pendingMutations : -1
+		}
+	}, {
+		w : 1
+	}, callback);
+};
+
+BraidDb.prototype.countMutations = function(objectType, objectId, callback /* (err, count) */) {
 	var cursor = this.mutations.find({
-		tileId : tileId,
+		objectType : objectType,
+		objectId : objectId,
 		integrated : true
 	}).count(false, {}, callback);
 };
 
-BraidDb.prototype.iterateMutations = function(tileId, reverseChronological, callback /* (err, cursor) */) {
+BraidDb.prototype.iterateMutations = function(objectType, objectId, reverseChronological, callback /* (err, cursor) */) {
 	var sort;
 	if (reverseChronological) {
 		sort = this.mutationReverseSort;
@@ -388,17 +460,19 @@ BraidDb.prototype.iterateMutations = function(tileId, reverseChronological, call
 		sort = this.mutationForwardSort;
 	}
 	var cursor = this.mutations.find({
-		tileId : tileId,
+		objectType : objectType,
+		objectId : objectId,
 		integrated : true
 	}).sort(sort);
 	callback(null, cursor);
 };
 
-BraidDb.prototype.iterateMutationsAfterIndex = function(tileId, index, callback /* (err, cursor) */) {
+BraidDb.prototype.iterateMutationsAfterIndex = function(objectType, objectId, index, callback /* (err, cursor) */) {
 	var sort;
 	sort = this.mutationForwardSort;
 	var cursor = this.mutations.find({
-		tileId : tileId,
+		objectType : objectType,
+		objectId : objectId,
 		integrated : true,
 		index : {
 			'$gt' : index
@@ -407,9 +481,10 @@ BraidDb.prototype.iterateMutationsAfterIndex = function(tileId, index, callback 
 	callback(null, cursor);
 };
 
-BraidDb.prototype.setTileIntegrated = function(tileId, mutationId, integrated, callback) {
+BraidDb.prototype.setMutationIntegrated = function(objectType, objectId, mutationId, integrated, callback) {
 	this.mutations.update({
-		tileId : tileId,
+		objectType : objectType,
+		objectId : objectId,
 		mutationId : mutationId
 	}, {
 		$set : {
@@ -420,9 +495,10 @@ BraidDb.prototype.setTileIntegrated = function(tileId, mutationId, integrated, c
 	}, callback);
 };
 
-BraidDb.prototype.updateMutationState = function(tileId, mutationId, stateHash, integrated, index, callback) {
+BraidDb.prototype.updateMutationState = function(objectType, objectId, mutationId, stateHash, integrated, index, callback) {
 	this.mutations.update({
-		tileId : tileId,
+		objectType : objectType,
+		objectId : objectId,
 		mutationId : mutationId
 	}, {
 		$set : {
@@ -447,29 +523,17 @@ BraidDb.prototype.updateTileSummaryInfo = function(tileId, summaryInfo, callback
 	}, callback);
 };
 
-BraidDb.prototype.addTileMember = function(tileId, memberAddress, callback) {
-	this.tiles.update({
-		tileId : tileId
+BraidDb.prototype.updateGroupSummaryInfo = function(groupId, summaryInfo, callback) {
+	this.groups.update({
+		groupId : groupId
 	}, {
-		$addToSet : {
-			members : memberAddress
+		$set : {
+			summaryInfo : summaryInfo
 		}
 	}, {
 		w : 1
 	}, callback);
-};
-
-BraidDb.prototype.removeTileMember = function(tileId, memberDescriptor, callback) {
-	this.tileCollection.update({
-		tileId : tileId
-	}, {
-		$pull : {
-			members : memberDescriptor
-		}
-	}, {
-		w : 1
-	}, callback);
-};
+}
 
 BraidDb.prototype.insertFile = function(record, callback) {
 	this.files.insert(record, {
@@ -477,28 +541,18 @@ BraidDb.prototype.insertFile = function(record, callback) {
 	}, callback);
 };
 
-BraidDb.prototype.isFileExists = function(fileId, callback /* (exists) */) {
-	this.files.find({
-		fileId : fileId
-	}).count(function(err, count) {
-		if (err) {
-			return false;
-		} else {
-			return count > 0;
-		}
-	}.bind(this));
-};
-
-BraidDb.prototype.getTileProperty = function(tileId, propertyName, callback /* (err, record) */) {
-	this.tileProperties.findOne({
-		tileId : tileId,
+BraidDb.prototype.getProperty = function(objectType, objectId, propertyName, callback /* (err, record) */) {
+	this.properties.findOne({
+		objectType : objectType,
+		objectId : objectId,
 		name : propertyName
 	}, callback);
 };
 
-BraidDb.prototype.setTileProperty = function(record, callback) {
-	this.tileProperties.update({
-		tileId : record.tileId,
+BraidDb.prototype.setProperty = function(record, callback) {
+	this.properties.update({
+		objectType : record.objectType,
+		objectId : record.objectId,
 		name : record.name
 	}, record, {
 		upsert : true,
@@ -506,9 +560,10 @@ BraidDb.prototype.setTileProperty = function(record, callback) {
 	}, callback);
 };
 
-BraidDb.prototype.deleteTileProperty = function(tileId, name, callback) {
+BraidDb.prototype.deleteProperty = function(objectType, objectId, name, callback) {
 	this.tilePropertiesCollection.remove({
-		tileId : tileId,
+		objectType : objectType,
+		objectId : objectId,
 		name : name
 	}, {
 		w : 1

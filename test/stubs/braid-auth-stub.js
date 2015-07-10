@@ -7,9 +7,9 @@ AuthServerStub.prototype.initialize = function(configuration, domainServices) {
 	this.factory = domainServices.factory;
 };
 
-AuthServerStub.prototype.getUserRecord = function(userId, callback) {
+AuthServerStub.prototype.getUserRecord = function(userid, callback) {
 	if (this.recordFound) {
-		var userRecord = this.factory.newAccountRecord(userId, this.domain, "hash");
+		var userRecord = this.factory.newAccountRecord(userid, this.domain, "hash");
 		callback(null, userRecord);
 	} else {
 		callback(null, null);

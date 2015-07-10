@@ -32,7 +32,7 @@ describe("braid-db:", function() {
 				if (err) {
 					throw err;
 				}
-				assert.equal(record.userId, "joe");
+				assert.equal(record.userid, "joe");
 				assert.equal(record.domain, "domain1");
 				done();
 			});
@@ -49,18 +49,18 @@ describe("braid-db:", function() {
 					throw err;
 				}
 				assert.equal(records.length, 1);
-				assert.equal(records[0].target.userId, "joe");
+				assert.equal(records[0].target.userid, "joe");
 				assert.equal(records[0].target.domain, "test.com");
-				assert.equal(records[0].subscriber.userId, "bob");
+				assert.equal(records[0].subscriber.userid, "bob");
 				assert.equal(records[0].subscriber.domain, "test.com");
 				braidDb.findTargetsBySubscriber("bob", "test.com", function(err, records) {
 					if (err) {
 						throw err;
 					}
 					assert.equal(records.length, 1);
-					assert.equal(records[0].target.userId, "joe");
+					assert.equal(records[0].target.userid, "joe");
 					assert.equal(records[0].target.domain, "test.com");
-					assert.equal(records[0].subscriber.userId, "bob");
+					assert.equal(records[0].subscriber.userid, "bob");
 					assert.equal(records[0].subscriber.domain, "test.com");
 					braidDb.removeSubscription("joe", "test.com", "bob", "test.com", function(err) {
 						if (err) {

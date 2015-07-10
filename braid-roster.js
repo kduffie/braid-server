@@ -35,14 +35,14 @@ RosterManager.prototype._handleSubscribeMessage = function(message) {
 	// Someone has sent a subscribe message. This means that they are making themselves a target so that the recipient
 	// will become a subscriber of their presence. If there isn't already a record for this subscription, we will add one.
 	async.eachSeries(message.to, function(recipient, callback) {
-		if (recipient.userId && recipient.domain) {
-			this.braidDb.findSubscription(message.from.userId, message.from.domain, recipient.userId, recipient.domain, function(err, record) {
+		if (recipient.userid && recipient.domain) {
+			this.braidDb.findSubscription(message.from.userid, message.from.domain, recipient.userid, recipient.domain, function(err, record) {
 				if (err) {
 					callback(err);
 				} else if (record) {
 					callback();
 				} else {
-					var subscription = this.factory.newSubscriptionRecord(message.from.userId, message.from.domain, recipient.userId, recipient.domain);
+					var subscription = this.factory.newSubscriptionRecord(message.from.userid, message.from.domain, recipient.userid, recipient.domain);
 					console.log("braid-roster: adding subscription", subscription);
 					this.braidDb.insertSubscription(subscription, callback);
 				}
@@ -53,14 +53,14 @@ RosterManager.prototype._handleSubscribeMessage = function(message) {
 
 RosterManager.prototype._handleUnsubscribeMessage = function(message) {
 	async.eachSeries(message.to, function(recipient, callback) {
-		if (recipient.userId && recipient.domain) {
-			this.braidDb.findSubscription(message.from.userId, message.from.domain, recipient.userId, recipient.domain, function(err, record) {
+		if (recipient.userid && recipient.domain) {
+			this.braidDb.findSubscription(message.from.userid, message.from.domain, recipient.userid, recipient.domain, function(err, record) {
 				if (err) {
 					callback(err);
 				} else if (record) {
-					var subscription = this.factory.newSubscriptionRecord(message.from.userId, message.from.domain, recipient.userId, recipient.domain);
+					var subscription = this.factory.newSubscriptionRecord(message.from.userid, message.from.domain, recipient.userid, recipient.domain);
 					console.log("braid-roster: adding subscription", subscription);
-					this.braidDb.removeSubscription(message.from.userId, message.from.domain, recipient.userId, recipient.domain, callback);
+					this.braidDb.removeSubscription(message.from.userid, message.from.domain, recipient.userid, recipient.domain, callback);
 				} else {
 					callback();
 				}
@@ -70,7 +70,7 @@ RosterManager.prototype._handleUnsubscribeMessage = function(message) {
 };
 
 RosterManager.prototype._notifyPresence = function(presenceEntry, includeForeign) {
-	this.braidDb.findSubscribersByTarget(presenceEntry.address.userId, presenceEntry.address.domain, function(err, records) {
+	this.braidDb.findSubscribersByTarget(presenceEntry.address.userid, presenceEntry.address.domain, function(err, records) {
 		if (err) {
 			throw err;
 		}
@@ -86,13 +86,13 @@ RosterManager.prototype._notifyPresence = function(presenceEntry, includeForeign
 			}
 		}
 		async.each(localUsers, function(localUser, callback) {
-			var presenceMessage = this.factory.newPresenceMessage(presenceEntry, localUser, this.rosterAddress);
+			var presenceMessage = this.factory.newPresenceMessage(this.rosterAddress, localUser, presenceEntry);
 			this.messageSwitch.deliver(presenceMessage);
 			callback();
 		}.bind(this));
 		if (includeForeign) {
 			async.each(foreignDomains, function(foreignDomain, callback) {
-				var presenceMessage = this.factory.newPresenceMessage(presenceEntry, new BraidAddress(null, foreignDomain), this.rosterAddress);
+				var presenceMessage = this.factory.newPresenceMessage(this.rosterAddress, new BraidAddress(null, foreignDomain), presenceEntry);
 				this.messageSwitch.deliver(presenceMessage);
 				callback();
 			}.bind(this));
@@ -105,19 +105,23 @@ RosterManager.prototype._handleRosterMessage = function(message) {
 	switch (message.request) {
 	case 'roster':
 		// The user wants a list of the users they are subscribed to, and a list of active resources for each
-		this.braidDb.findTargetsBySubscriber(message.from.userId, message.from.domain, function(err, records) {
+		this.braidDb.findTargetsBySubscriber(message.from.userid, message.from.domain, function(err, records) {
 			if (err) {
 				throw err;
 			}
 			var entries = [];
+			// Add "myself" to the list
+			records.push({
+				target : new BraidAddress(message.from.userid, message.from.domain)
+			});
 			async.each(records, function(record, callback) {
 				var address = newAddress(record.target);
 				var activeUser = this.getOrCreateActiveUser(address);
-				var entry = this.factory.newRosterEntry(new BraidAddress(record.target.userId, record.target.domain), activeUser.resources);
+				var entry = this.factory.newRosterEntry(new BraidAddress(record.target.userid, record.target.domain), activeUser.resources);
 				entries.push(entry);
 				callback();
 			}.bind(this), function(err) {
-				var reply = this.factory.newRosterReply(message, entries, this.rosterAddress);
+				var reply = this.factory.newRosterReplyMessage(message, this.rosterAddress, entries);
 				this.messageSwitch.deliver(reply);
 			}.bind(this));
 		}.bind(this));
@@ -179,7 +183,7 @@ RosterManager.prototype._onForeignClientSessionClosed = function(entry) {
 
 RosterManager.prototype._onClientSessionActivated = function(session) {
 	console.log("braid-roster: onClientSessionActivated", session.userAddress);
-	var entry = this.factory.newPresenceEntry(session.userAddress, true);
+	var entry = this.factory.newPresenceMessageData(session.userAddress, true);
 	var address = newAddress(session.userAddress, true);
 	var activeUser = this.getOrCreateActiveUser(address);
 	activeUser.resources.push(session.userAddress.resource);
@@ -188,7 +192,7 @@ RosterManager.prototype._onClientSessionActivated = function(session) {
 
 RosterManager.prototype._onClientSessionClosed = function(session) {
 	if (session.userAddress) {
-		var entry = this.factory.newPresenceEntry(session.userAddress, false);
+		var entry = this.factory.newPresenceMessageData(session.userAddress, false);
 		var address = newAddress(session.userAddress, true);
 		var key = address.asString();
 		var activeUser = this.activeUsers[key];

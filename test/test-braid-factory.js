@@ -3,7 +3,7 @@ var factory = require('../braid-factory');
 
 describe("Braid Factory", function() {
 	it("creates a register message", function(done) {
-		var request = factory.newRegisterRequest("user", "pw");
+		var request = factory.newRegisterRequestMessage("user", "pw");
 		assert(request, "Request created");
 		assert(request.id, "Non-zero id");
 		assert.equal(request.type, "request");

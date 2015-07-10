@@ -13,12 +13,12 @@ describe('message-switch:', function() {
 		messageSwitch.initialize();
 		var address1 = {
 			domain : 'test.com',
-			userId : 'joe',
+			userid : 'joe',
 			resource : '12345'
 		};
 		var address2 = {
 			domain : 'test.com',
-			userId : 'bob',
+			userid : 'bob',
 			resource : '23456'
 		};
 		var port = messageSwitch.registerResource('12345', null, handler);
