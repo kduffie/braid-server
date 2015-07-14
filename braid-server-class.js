@@ -66,6 +66,27 @@ BraidServer.prototype.start = function(callback) {
 	}.bind(this));
 };
 
+BraidServer.prototype.getCertificateAuthority()
+{
+	if (this.config.ssl && this.config.ssl.ca) {
+		var ca = [];
+		var chain = fs.readFileSync(this.config.ssl.ca, 'utf8');
+		chain = chain.split("\n");
+		var cert = [];
+		for (var i = 0; i < chain.length; i++) {
+			var line = chain[i];
+			if (line.length > 0) {
+				cert.push(line);
+				if (line.match(/-END CERTIFICATE-/)) {
+					ca.push(cert.join('\n'));
+					cert = [];
+				}
+			}
+		}
+		return ca;
+	}
+};
+
 BraidServer.prototype.startServer = function(callback) {
 	if (this.config.client && this.config.client.enabled) {
 		var clientPort = 25555;
@@ -86,6 +107,10 @@ BraidServer.prototype.startServer = function(callback) {
 				key : privateKey,
 				cert : certificate
 			};
+			var ca = this.getCertificateAuthority();
+			if (ca) {
+				credentials.ca = ca;
+			}
 			this.clientServer = https.createServer(credentials, this.clientApp);
 		}
 		console.log("Listening for client connections on port " + clientPort);
@@ -117,6 +142,10 @@ BraidServer.prototype.startServer = function(callback) {
 				key : privateKey,
 				cert : certificate
 			};
+			var ca = this.getCertificateAuthority();
+			if (ca) {
+				credentials.ca = ca;
+			}
 			this.federationServer = https.createServer(credentials, this.federationApp);
 		}
 		console.log("Listening for federation connections on port " + federationPort);

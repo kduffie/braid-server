@@ -17,6 +17,27 @@ function FileServer() {
 
 }
 
+FileServer.prototype.getCertificateAuthority()
+{
+	if (this.config.ssl && this.config.ssl.ca) {
+		var ca = [];
+		var chain = fs.readFileSync(this.config.ssl.ca, 'utf8');
+		chain = chain.split("\n");
+		var cert = [];
+		for (var i = 0; i < chain.length; i++) {
+			var line = chain[i];
+			if (line.length > 0) {
+				cert.push(line);
+				if (line.match(/-END CERTIFICATE-/)) {
+					ca.push(cert.join('\n'));
+					cert = [];
+				}
+			}
+		}
+		return ca;
+	}
+};
+
 FileServer.prototype.initialize = function(config, services) {
 	if (config.fileServer && !config.fileServer.enabled) {
 		console.log("file-server: not installed based on configuration");
@@ -36,6 +57,10 @@ FileServer.prototype.initialize = function(config, services) {
 			key : privateKey,
 			cert : certificate
 		};
+		var ca = this.getCertificateAuthority();
+		if (ca) {
+			credentials.ca = ca;
+		}
 		this.server = https.createServer(credentials, this.requestHandler.bind(this));
 	}
 	var port = 25565;

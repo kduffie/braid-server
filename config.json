@@ -5,6 +5,7 @@
 		"options" : {}
 	},
 	"ssl" : {
+		"ca": "/usr/local/etc/certs/caBundle",
 		"key": "/usr/local/etc/certs/server.key",
 		"cert": "/usr/local/etc/certs/server.crt"
 	},
