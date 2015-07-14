@@ -66,8 +66,7 @@ BraidServer.prototype.start = function(callback) {
 	}.bind(this));
 };
 
-BraidServer.prototype.getCertificateAuthority()
-{
+BraidServer.prototype.getCertificateAuthority = function() {
 	if (this.config.ssl && this.config.ssl.ca) {
 		var ca = [];
 		var chain = fs.readFileSync(this.config.ssl.ca, 'utf8');

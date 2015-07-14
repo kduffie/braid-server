@@ -17,8 +17,7 @@ function FileServer() {
 
 }
 
-FileServer.prototype.getCertificateAuthority()
-{
+FileServer.prototype.getCertificateAuthority = function() {
 	if (this.config.ssl && this.config.ssl.ca) {
 		var ca = [];
 		var chain = fs.readFileSync(this.config.ssl.ca, 'utf8');
