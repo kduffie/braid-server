@@ -8,7 +8,7 @@ var async = require('async');
 var BraidAddress = require('./braid-address').BraidAddress;
 var newAddress = require('./braid-address').newAddress;
 
-var BOT_RESOURCE = '!bot';
+// var BOT_RESOURCE = '!bot';
 
 function RosterManager() {
 }
@@ -152,8 +152,11 @@ RosterManager.prototype.getOrCreateActiveUser = function(address) {
 	if (!activeUser) {
 		activeUser = {
 			address : address,
-			resources : [ BOT_RESOURCE ]
+			resources : []
 		};
+		if (this.config.bot && this.config.bot.enabled) {
+			activeUser.resources.push(BOT_RESOURCE);
+		}
 		this.activeUsers[key] = activeUser;
 	}
 	return activeUser;

@@ -196,7 +196,17 @@ FileServer.prototype.handlePut = function(request, response) {
 	console.log("file-server " + this.config.domain + ": PUT " + request.url);
 	this.authenticateRequest(request, response, function(identity) {
 		var parsedUrl = url.parse(request.url, true);
-		var fileId = newUuid();
+		var pathParts = parsedUrl.pathname.split('/');
+		if (pathParts < 3) {
+			this.sendResponse(response, 400, "Invalid URL:  must include domain and fileId path components");
+			return;
+		}
+		var domain = pathParts[1];
+		if (domain !== this.config.domain) {
+			this.sendResponse(response, 400, "Invalid URL:  this domain is not supported by this server");
+			return;
+		}
+		var fileId = pathParts[2];
 		var filePath = this.config.domain + "/" + fileId;
 		var encrypt = false;
 		var encryptionKey;

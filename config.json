@@ -30,12 +30,12 @@
 		"port" : 25559
 	},
 	"bot" : {
-		"enabled" : true,
+		"enabled" : false,
 		"inventoryRequestDelay": 15000
 	},
 	"debug" : {
 		"messageSwitch": {
-			"logMessages" : false
+			"logMessages" : true
 		},
 		"clientSessions" : {
 			"logMessages" : false
