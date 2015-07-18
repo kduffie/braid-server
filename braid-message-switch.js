@@ -238,17 +238,18 @@ MessageSwitch.prototype.deliver = function(message, callback) {
 		}
 	}.bind(this));
 	tasks.push(function(callback) {
-		// We will only deliver to foreign domain registrants if the message originated in this domain
-		if (message.to && message.from != null && message.from.domain == this.config.domain) {
+		if (message.to) {
 			var fhandlers = [];
 			var ldomains = [];
 			for (var i = 0; i < this.foreignDomainRegistrations.length; i++) {
 				var fdr = this.foreignDomainRegistrations[i];
-				for (var j = 0; j < message.to.length; j++) {
-					if (message.to[j] && message.to[j].domain && fdr.localDomain !== message.to[j].domain) {
-						if (ldomains.indexOf(fdr.localDomain) < 0) {
-							ldomains.push(fdr.localDomain);
-							fhandlers.push(fdr.handler);
+				if (message.from && message.from.domain == fed.localDomain) {
+					for (var j = 0; j < message.to.length; j++) {
+						if (message.to[j] && message.to[j].domain && fdr.localDomain !== message.to[j].domain) {
+							if (ldomains.indexOf(fdr.localDomain) < 0) {
+								ldomains.push(fdr.localDomain);
+								fhandlers.push(fdr.handler);
+							}
 						}
 					}
 				}
