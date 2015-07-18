@@ -489,8 +489,10 @@ FederationManager.prototype._handleSwitchedMessage = function(message) {
 	var domains = [];
 	for (var i = 0; i < message.to.length; i++) {
 		var domain = message.to[i].domain;
-		if (domains.indexOf(domain) < 0) {
-			domains.push(domain);
+		if (domain !== this.config.domain) {
+			if (domains.indexOf(domain) < 0) {
+				domains.push(domain);
+			}
 		}
 	}
 	for (var i = 0; i < domains.length; i++) {
