@@ -9,7 +9,8 @@ var id = 1;
 function MessageSwitch() {
 }
 
-MessageSwitch.prototype.initialize = function() {
+MessageSwitch.prototype.initialize = function(configuration, services) {
+	this.config = configuration
 	this.resourceRegistrations = {};
 	this.userRegistrations = {};
 	this.requestRegistrations = {};
