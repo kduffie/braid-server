@@ -116,7 +116,7 @@ RosterManager.prototype._handleRosterMessage = function(message) {
 			});
 			async.each(records, function(record, callback) {
 				var address = newAddress(record.target);
-				var activeUser = this.getOrCreateActiveUser(address);
+				var activeUser = this.getOrCreateActiveUser(address, true);
 				var entry = this.factory.newRosterEntry(new BraidAddress(record.target.userid, record.target.domain), activeUser.resources);
 				entries.push(entry);
 				callback();
@@ -146,10 +146,10 @@ RosterManager.prototype._handleRosterMessage = function(message) {
 	}
 };
 
-RosterManager.prototype.getOrCreateActiveUser = function(address) {
+RosterManager.prototype.getOrCreateActiveUser = function(address, createIfMissing) {
 	var key = address.asString();
 	var activeUser = this.activeUsers[key];
-	if (!activeUser) {
+	if (!activeUser && createIfMissing) {
 		activeUser = {
 			address : address,
 			resources : []
@@ -165,7 +165,7 @@ RosterManager.prototype.getOrCreateActiveUser = function(address) {
 RosterManager.prototype._onForeignClientSessionActivated = function(entry) {
 	var address = newAddress(entry.address);
 	console.log("braid-roster: onForeignClientSessionActivated", entry);
-	var activeUser = this.getOrCreateActiveUser(address);
+	var activeUser = this.getOrCreateActiveUser(address, true);
 	activeUser.resources.push(address.resource);
 	this._notifyPresence(entry, false);
 };
@@ -173,13 +173,16 @@ RosterManager.prototype._onForeignClientSessionActivated = function(entry) {
 RosterManager.prototype._onForeignClientSessionClosed = function(entry) {
 	console.log("braid-roster: onForeignClientSessionClosed", entry);
 	var address = newAddress(entry.address, true);
-	var activeUser = this.getOrCreateActiveUser(address);
-	var index = activeUser.resources.indexOf(address.resource);
-	if (index >= 0) {
-		activeUser.resources.splice(index, 1);
-	}
-	if (activeUser.resources.length === 0) {
-		delete this.activeUsers[key];
+	var activeUser = this.getOrCreateActiveUser(address, false);
+	if (activeUser) {
+		var index = activeUser.resources.indexOf(address.resource);
+		if (index >= 0) {
+			activeUser.resources.splice(index, 1);
+		}
+		if (activeUser.resources.length === 0) {
+			var key = address.asString();
+			delete this.activeUsers[key];
+		}
 	}
 	this._notifyPresence(entry, false);
 };
@@ -188,7 +191,7 @@ RosterManager.prototype._onClientSessionActivated = function(session) {
 	console.log("braid-roster: onClientSessionActivated", session.userAddress);
 	var entry = this.factory.newPresenceMessageData(session.userAddress, true);
 	var address = newAddress(session.userAddress, true);
-	var activeUser = this.getOrCreateActiveUser(address);
+	var activeUser = this.getOrCreateActiveUser(address, true);
 	activeUser.resources.push(session.userAddress.resource);
 	this._notifyPresence(entry, true);
 };
