@@ -243,7 +243,7 @@ MessageSwitch.prototype.deliver = function(message, callback) {
 			var ldomains = [];
 			for (var i = 0; i < this.foreignDomainRegistrations.length; i++) {
 				var fdr = this.foreignDomainRegistrations[i];
-				if (message.from && message.from.domain == fed.localDomain) {
+				if (message.from && message.from.domain == fdr.localDomain) {
 					for (var j = 0; j < message.to.length; j++) {
 						if (message.to[j] && message.to[j].domain && fdr.localDomain !== message.to[j].domain) {
 							if (ldomains.indexOf(fdr.localDomain) < 0) {
