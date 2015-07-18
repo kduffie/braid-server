@@ -147,9 +147,9 @@ MessageSwitch.prototype.unregister = function(registration) {
 };
 
 MessageSwitch.prototype.deliver = function(message, callback) {
-	// if (this.config && this.config.debug && this.config.debug.messageSwitch && this.config.debug.messageSwitch.logMessages) {
-	console.log("X ", message);
-	// }
+	if (this.config && this.config.debug && this.config.debug.messageSwitch && this.config.debug.messageSwitch.logMessages) {
+		console.log("X ", message);
+	}
 	this.stats.messages.received++;
 	if (message.to && !Array.isArray(message.to)) {
 		message.to = [ message.to ];
@@ -238,7 +238,8 @@ MessageSwitch.prototype.deliver = function(message, callback) {
 		}
 	}.bind(this));
 	tasks.push(function(callback) {
-		if (message.to) {
+		// We will only deliver to foreign domain registrants if the message originated in this domain
+		if (message.to && message.from != null && message.from.domain == this.config.domain) {
 			var fhandlers = [];
 			var ldomains = [];
 			for (var i = 0; i < this.foreignDomainRegistrations.length; i++) {
