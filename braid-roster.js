@@ -40,6 +40,7 @@ RosterManager.prototype._handleSubscribeMessage = function(message) {
 				if (err) {
 					callback(err);
 				} else if (record) {
+					console.log("braid-roster: subscription already exists", subscription);
 					callback();
 				} else {
 					var subscription = this.factory.newSubscriptionRecord(message.from.userid, message.from.domain, recipient.userid, recipient.domain);
@@ -110,10 +111,20 @@ RosterManager.prototype._handleRosterMessage = function(message) {
 				throw err;
 			}
 			var entries = [];
-			// Add "myself" to the list
-			records.push({
-				target : new BraidAddress(message.from.userid, message.from.domain)
-			});
+			var foundMe = false;
+			for (var i = 0; i < records.length; i++) {
+				if (records[i].target.userid == message.from.userid && records[i].target.domain == message.from.domain) {
+					foundMe = true
+					break;
+				}
+			}
+			if (!foundMe) {
+				// Add "myself" to the list if missing
+				records.push({
+					target : new BraidAddress(message.from.userid, message.from.domain),
+					subscriber : new BraidAddress(message.from.userid, message.from.domain)
+				});
+			}
 			async.each(records, function(record, callback) {
 				var address = newAddress(record.target);
 				var activeUser = this.getOrCreateActiveUser(address, true);
