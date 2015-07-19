@@ -105,7 +105,6 @@ BraidDb.prototype._setupSubscriptions = function(callback) {
 			"target.userid" : 1,
 			"target.domain" : 1
 		}, {
-			unique : true,
 			w : 1
 		}, callback);
 	}.bind(this));

@@ -45,9 +45,16 @@ RosterManager.prototype._handleSubscribeMessage = function(message) {
 				} else {
 					var subscription = this.factory.newSubscriptionRecord(message.from.userid, message.from.domain, recipient.userid, recipient.domain);
 					console.log("braid-roster: adding subscription", subscription);
-					this.braidDb.insertSubscription(subscription, callback);
+					this.braidDb.insertSubscription(subscription, function(err) {
+						if (err) {
+							console.error("braid-roster: Error inserting subscription", err);
+						}
+						callback(err);
+					}.bind(this));
 				}
 			}.bind(this));
+		} else {
+			callback();
 		}
 	}.bind(this));
 };
