@@ -215,14 +215,18 @@ BraidFactory.prototype.newPresenceMessageData = function(address, online) {
 	};
 };
 
-BraidFactory.prototype.newRosterEntry = function(targetAddress, resources) {
+BraidFactory.prototype.newRosterEntry = function(targetAddress, resources, symmetric) {
 	if (!resources) {
 		resources = [];
+	}
+	if (!symmetric) {
+		symmetric = false;
 	}
 	return {
 		userid : targetAddress.userid,
 		domain : targetAddress.domain,
-		resources : resources
+		resources : resources,
+		symmetric : symmetric
 	};
 };
 

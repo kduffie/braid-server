@@ -117,9 +117,12 @@ RosterManager.prototype._handleRosterMessage = function(message) {
 			async.each(records, function(record, callback) {
 				var address = newAddress(record.target);
 				var activeUser = this.getOrCreateActiveUser(address, true);
-				var entry = this.factory.newRosterEntry(new BraidAddress(record.target.userid, record.target.domain), activeUser.resources);
-				entries.push(entry);
-				callback();
+				this.braidDb.findSubscription(message.from.userid, message.from.domain, address.userid, address.domain, function(err, reverseRecord) {
+					var entry = this.factory.newRosterEntry(new BraidAddress(record.target.userid, record.target.domain), activeUser.resources,
+							reverseRecord != null);
+					entries.push(entry);
+					callback();
+				}.bind(this));
 			}.bind(this), function(err) {
 				var reply = this.factory.newRosterReplyMessage(message, this.rosterAddress, entries);
 				this.messageSwitch.deliver(reply);
