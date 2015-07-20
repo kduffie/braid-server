@@ -166,8 +166,10 @@ FederationSession.prototype.onSocketMessageReceived = function(msg) {
 						this.handleCloseRequest(message);
 						return;
 					case 'roster':
+						console.log("federation:  received foreign roster request", message);
 						for (var i = 0; i < message.to.length; i++) {
-							if (message.to[i].domain === this.config.domain && message.to[i].resource === null) {
+							if (message.to[i].domain === this.config.domain && !message.to[i].resource) {
+								console.log("federation: directing foreign roster request to roster manager: ", message);
 								message.to[i].resource = ROSTER_RESOURCE;
 							}
 						}
