@@ -2,6 +2,8 @@ var async = require('async');
 var BraidAddress = require('./braid-address').BraidAddress;
 var newUuid = require('./braid-uuid');
 
+var ROSTER_RESOURCE = '!roster'
+
 /*
  * A Session object represents one websocket connection to a user. Each Session has a unique full address once it has been authenticated, because a new UUID is
  * assigned as a resource for the session.
@@ -151,7 +153,15 @@ Session.prototype.onSocketMessageReceived = function(msg) {
 			case 'active':
 				switch (message.request) {
 				case 'roster':
-					message.to = this.rosterServerAddress;
+					if (message.to && message.to.length > 0) {
+						for (var i = 0; i < message.to.length; i++) {
+							if (message.to[i].domain == this.config.domain) {
+								message.to[i].resource = ROSTER_RESOURCE;
+							}
+						}
+					} else {
+						message.to = [ this.rosterServerAddress ];
+					}
 					break;
 				case 'ping':
 					if (!message.to || message.to.length === 0) {

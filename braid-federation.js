@@ -4,6 +4,8 @@ var newUuid = require('./braid-uuid');
 var domainNameServer = require('./braid-name-service');
 var WebSocket = require('ws');
 
+var ROSTER_RESOURCE = '!roster';
+
 /*
  * A FederationSession object represents one websocket connection to another braid server.
  * 
@@ -163,6 +165,13 @@ FederationSession.prototype.onSocketMessageReceived = function(msg) {
 					case 'close':
 						this.handleCloseRequest(message);
 						return;
+					case 'roster':
+						for (var i = 0; i < message.to.length; i++) {
+							if (message.to[i].domain === this.config.domain && message.to[i].resource === null) {
+								message.to[i].resource = ROSTER_RESOURCE;
+							}
+						}
+						break;
 					}
 					break;
 				case 'cast':
