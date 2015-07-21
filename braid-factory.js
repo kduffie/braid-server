@@ -77,7 +77,7 @@ BraidFactory.prototype.newErrorReplyMessage = function(requestMessage, from, cod
 };
 
 BraidFactory.prototype.newUnhandledMessageErrorReply = function(requestMessage, from) {
-	return this.newErrorMessage(requestMessage, from, 400, "Message type is unrecognized or unhandled");
+	return this.newErrorReplyMessage(requestMessage, from, 400, "Message type is unrecognized or unhandled");
 };
 
 // All various braid message objects
